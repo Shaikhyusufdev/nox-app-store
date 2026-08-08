@@ -32,12 +32,10 @@ document.getElementById('appForm').onsubmit = async (e) => {
   fd.append('size', document.getElementById('f_size').value);
   fd.append('rating', document.getElementById('f_rating').value);
   fd.append('description', document.getElementById('f_desc').value);
+  fd.append('apk_url', document.getElementById('f_apk_url').value);
 
   const shots = document.getElementById('f_shots').files;
   for (let i = 0; i < shots.length; i++) fd.append('screenshots', shots[i]);
-
-  const apk = document.getElementById('f_apk').files[0];
-  if (apk) fd.append('apk', apk);
 
   try {
     await fetchJSON('/api/admin/apps', {

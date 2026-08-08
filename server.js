@@ -14,8 +14,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Store APK + screenshots in memory before uploading to Supabase Storage
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
+// Screenshots go through the backend and land in Supabase Storage.
+// The APK itself is NOT uploaded here — admin just pastes a link to it.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 // ---------- helpers ----------
 function makeSlug(name) {
@@ -82,26 +83,23 @@ app.get('/api/apps/:slug', async (req, res) => {
 
 // ---------- admin API (password protected) ----------
 
-// Add a new app: name, version, size, rating, description + up to 6 screenshots + 1 apk
+// Add a new app: name, version, size, rating, description, apk_url (link) + up to 6 screenshots
 app.post(
   '/api/admin/apps',
   checkAdmin,
-  upload.fields([{ name: 'screenshots', maxCount: 6 }, { name: 'apk', maxCount: 1 }]),
+  upload.fields([{ name: 'screenshots', maxCount: 6 }]),
   async (req, res) => {
     try {
-      const { name, version, size, rating, description } = req.body;
-      if (!name || !req.files.apk) {
-        return res.status(400).json({ error: 'App name and APK file are required' });
+      const { name, version, size, rating, description, apk_url } = req.body;
+      if (!name || !apk_url) {
+        return res.status(400).json({ error: 'App name and APK link are required' });
       }
 
       const slug = makeSlug(name);
 
-      // Upload APK
-      const apkUrl = await uploadFile('apks', req.files.apk[0], slug);
-
-      // Upload screenshots (if any)
+      // Upload screenshots (if any) to Supabase Storage
       let screenshotUrls = [];
-      if (req.files.screenshots) {
+      if (req.files && req.files.screenshots) {
         for (const shot of req.files.screenshots) {
           const url = await uploadFile('screenshots', shot, slug);
           screenshotUrls.push(url);
@@ -118,7 +116,7 @@ app.post(
           rating: rating ? parseFloat(rating) : null,
           description: description || '',
           screenshots: screenshotUrls,
-          apk_url: apkUrl
+          apk_url
         }])
         .select()
         .single();

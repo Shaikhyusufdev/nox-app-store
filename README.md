@@ -4,14 +4,17 @@ Ek chota app-store: home page pe latest app hero, "Other Apps" listing, har app 
 apna auto-generated page, aur password-protected admin panel jaha se naye apps
 add karte hi unka page automatically ban jata hai.
 
-## 1. Supabase setup (database + file storage)
+## 1. Supabase setup (database + storage for screenshots only)
 
 1. https://supabase.com pe naya project banao (free tier kaafi hai).
 2. Dashboard > **SQL Editor** > New Query > `supabase-schema.sql` ka content
    paste karke Run karo. Isse `apps` table ban jayega.
-3. Dashboard > **Storage** > naye 2 buckets banao, **Public** rakhna dono ko:
-   - `apks`
-   - `screenshots`
+   - Agar tumne pehle koi purana schema already run kiya tha (screenshots
+     column hataane wala), to `migration-restore-screenshots.sql` bhi run
+     kar do taaki column wapas aa jaye.
+3. Dashboard > **Storage** > naya bucket banao naam `screenshots`, aur
+   **Public bucket** toggle ON karna (APK ke liye koi bucket nahi chahiye —
+   wo sirf ek link hai jo tum khud kahi aur host karoge).
 4. Dashboard > **Settings > API** se ye 2 cheeze copy karo:
    - `Project URL`
    - `service_role` key (secret key, anon key nahi)
@@ -69,9 +72,11 @@ mein wo CNAME add kar do (jaisa pichle deployment mein Vercel ke liye kiya tha).
   karti hai. Matlab jab bhi admin panel se naya app add karoge, uska page
   **automatically** ban jata hai — koi extra kaam nahi.
 - **Admin panel** (`admin.html`) — password se login, form bharo (name,
-  version, size, rating, description, screenshots, APK file), submit karte hi
-  Supabase Storage mein files upload hoti hain aur database mein entry ban
-  jati hai — turant live.
+  version, size, rating, description, up to 6 screenshots, aur **APK ka
+  direct download link** jo tumne kahi aur host kar rakha hai). Submit karte
+  hi screenshots Supabase Storage mein upload hoti hain aur database mein
+  entry ban jati hai — turant live. APK khud upload nahi hota, sirf uska
+  link save hota hai.
 
 ## Security note
 
