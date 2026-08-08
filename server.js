@@ -151,4 +151,10 @@ app.get('/app/:slug', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 
-app.listen(PORT, () => console.log(`NOX App Store running on port ${PORT}`));
+// Local dev: run a normal server. On Vercel, the app is exported and Vercel
+// wraps it as a serverless function instead of calling .listen().
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`NOX App Store running on port ${PORT}`));
+}
+
+module.exports = app;

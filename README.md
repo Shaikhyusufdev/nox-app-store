@@ -40,23 +40,28 @@ npm start
 
 Site khulegi `http://localhost:3000` pe. Admin panel: `http://localhost:3000/admin.html`
 
-## 3. Deploy (Render — free, recommended kyunki backend chahiye)
+## 3. Deploy (Vercel)
 
-Vercel serverless functions APK jaisi bade files ke liye ideal nahi hain, isliye
-is backend (Express + file uploads) ke liye **Render.com** use karo — free tier
-available hai.
+1. Is poore updated `app-store` folder ko GitHub repo mein push karo (jo tumne already banaya hai).
+2. https://vercel.com pe GitHub se login karo. "Add New Project" > apna repo (`nox-app-store`) import karo.
+3. Framework Preset: "Other" select karo (auto-detect ho sakta hai `vercel.json` ki wajah se).
+4. **Environment Variables** section mein add karo:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_KEY`
+   - `ADMIN_PASSWORD`
+5. Deploy karo. Ek `.vercel.app` URL milega jaha site turant live hogi.
 
-1. Is poore `app-store` folder ko ek naye GitHub repo mein push karo.
-2. https://render.com pe GitHub se login, "New > Web Service" > apna repo select karo.
-3. Build command: `npm install` | Start command: `npm start`
-4. Environment tab mein `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ADMIN_PASSWORD` add karo.
-5. Deploy hone ke baad ek URL milega jaise `nox-store.onrender.com`.
+**Note:** Vercel ke free (Hobby) plan pe serverless function requests ki body
+size ~4.5 MB tak limited hoti hai. Agar screenshots is se bade hain to upload
+fail ho sakta hai — screenshots ko compress/resize karke rakhna (jaise
+1-2 MB tak) safe rahega.
 
 ## 4. Custom domain connect karna (noxwinex.store)
 
-Render ke "Settings > Custom Domain" mein apna domain add karo, wo tumhe ek
-CNAME record dega. Hostinger hPanel > DNS/Nameservers > Manage DNS records
-mein wo CNAME add kar do (jaisa pichle deployment mein Vercel ke liye kiya tha).
+Vercel ke Project > Settings > Domains mein apna domain add karo, wo tumhe
+ek A record aur CNAME record dega. Hostinger hPanel > DNS/Nameservers >
+Manage DNS records mein wo records add kar do — bilkul waisa hi jaisa
+pehle discuss kiya tha portfolio site ke liye.
 
 ## Kaise kaam karta hai
 
