@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — NOX Store</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="nav">
+  <a class="nav-brand" href="index.html"><span class="p">NOX</span> <span class="c">STORE</span></a>
+  <div class="nav-actions"><span style="font-size:11px;color:var(--muted)">Admin Panel</span></div>
+</div>
+
+<div class="admin-wrap">
+
+  <!-- Login gate -->
+  <div class="admin-box" id="loginBox">
+    <div class="field">
+      <label>Admin Password</label>
+      <input type="password" id="pwInput" placeholder="Enter admin password">
+    </div>
+    <div id="loginMsg"></div>
+    <button class="btn btn-primary btn-block" id="loginBtn">Login</button>
+  </div>
+
+  <!-- Add-app form (hidden until logged in) -->
+  <div class="admin-box" id="formBox" style="display:none">
+    <div id="formMsg"></div>
+    <form id="appForm">
+      <div class="field"><label>App Name</label><input type="text" id="f_name" required></div>
+      <div class="field"><label>Version</label><input type="text" id="f_version" placeholder="e.g. 2.1.0"></div>
+      <div class="field"><label>Size</label><input type="text" id="f_size" placeholder="e.g. 24 MB"></div>
+      <div class="field"><label>Rating (0-5)</label><input type="number" step="0.1" min="0" max="5" id="f_rating"></div>
+      <div class="field"><label>Description</label><textarea id="f_desc"></textarea></div>
+      <div class="field"><label>Screenshots (up to 6)</label><input type="file" id="f_shots" accept="image/*" multiple></div>
+      <div class="field"><label>APK File</label><input type="file" id="f_apk" accept=".apk" required></div>
+      <button class="btn btn-primary btn-block" type="submit">Add App</button>
+    </form>
+
+    <div class="admin-list">
+      <div class="section-title" style="padding-left:0">// listed apps</div>
+      <div id="adminList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>
