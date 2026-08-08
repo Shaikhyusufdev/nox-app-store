@@ -3,26 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Browse every app listed on NOX Store.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/favicon.svg">
+<link rel="canonical" href="/apps.html">
+<meta name="theme-color" content="#08090f">
 <title>All Apps — NOX Store</title>
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
 
 <div class="nav">
-  <a class="nav-brand" href="index.html"><span class="p">NOX</span> <span class="c">STORE</span></a>
+  <a class="nav-brand" href="/"><span class="p">NOX</span> <span class="c">STORE</span></a>
   <div class="nav-actions">
-    <a class="btn btn-outline" href="index.html">Home</a>
+    <a class="btn btn-outline" href="/">Home</a>
   </div>
 </div>
 
 <div class="section-title">// all listed apps</div>
+<div class="search-bar"><input type="text" id="appSearch" placeholder="Search apps…"></div>
 <div class="app-grid" id="appGrid">
   <div class="center-empty">Loading apps…</div>
 </div>
 
 <div class="foot">NOX STORE © 2026 · Powered by NOX STUDIO</div>
 
-<script src="js/api.js"></script>
-<script src="js/apps.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/apps.js"></script>
 </body>
 </html>

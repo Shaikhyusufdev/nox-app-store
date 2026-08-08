@@ -12,6 +12,11 @@ async function loadDetail() {
     const app = await fetchJSON(`/api/apps/${slug}`);
     document.title = `${app.name} — NOX Store`;
 
+    const shotsHtml = (app.screenshots || [])
+      .slice(0, 6)
+      .map(url => `<img src="${url}" alt="${app.name} screenshot" loading="lazy">`)
+      .join('');
+
     detail.innerHTML = `
       <div class="detail-top">
         <div class="detail-icon">${initials(app.name)}</div>
@@ -25,10 +30,12 @@ async function loadDetail() {
         </div>
       </div>
       <p class="detail-desc">${app.description || 'No description provided.'}</p>
-      <div class="download-cta">
+      ${shotsHtml ? `<div class="shots" style="padding-left:0;padding-right:0">${shotsHtml}</div>` : ''}
+      <div class="download-cta" style="margin-left:0">
         <button class="btn btn-primary btn-block" onclick="window.location.href='${app.apk_url}'">
           ⬇ Download APK
         </button>
+        <div class="download-hint">Direct link · ${app.size || 'size unknown'}</div>
       </div>
     `;
   } catch (err) {

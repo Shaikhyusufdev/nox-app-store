@@ -15,22 +15,26 @@ async function loadHome() {
 
     content.innerHTML = `
       <div class="hero">
+        <div class="eyebrow">// latest release</div>
         <div class="detail-icon" style="margin:0 auto">${initials(app.name)}</div>
         <div class="hero-name">${app.name}</div>
-        <div style="color:var(--muted2);font-size:12px;margin-bottom:14px">
-          ${starRating(app.rating)} · ${app.size || 'N/A'} · v${app.version || '1.0'}
+        <div class="hero-meta">
+          <span>${starRating(app.rating)}</span><span class="dot">·</span>
+          <span>${app.size || 'N/A'}</span><span class="dot">·</span>
+          <span>v${app.version || '1.0'}</span>
         </div>
-        <p class="hero-desc">${app.description || ''}</p>
-        <div class="shots">${shotsHtml}</div>
-        <div class="download-cta">
-          <button class="btn btn-primary btn-block" onclick="window.location.href='${app.apk_url}'">
-            ⬇ Download APK
-          </button>
-        </div>
+        ${app.description ? `<p class="hero-desc">${app.description}</p>` : ''}
+      </div>
+      ${shotsHtml ? `<div class="shots">${shotsHtml}</div>` : ''}
+      <div class="download-cta">
+        <button class="btn btn-primary btn-block" onclick="window.location.href='${app.apk_url}'">
+          ⬇ Download APK
+        </button>
+        <div class="download-hint">Direct link · ${app.size || 'size unknown'}</div>
       </div>
     `;
   } catch (err) {
-    content.innerHTML = `<div class="center-empty">No apps listed yet. Check back soon.</div>`;
+    content.innerHTML = `<div class="center-empty">// no apps listed yet — check back soon</div>`;
     topBtn.onclick = () => {};
   }
 }

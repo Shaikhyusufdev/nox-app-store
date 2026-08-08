@@ -4,6 +4,7 @@ const cors = require('cors');
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,14 @@ function makeSlug(name) {
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '') + '-' + Date.now().toString(36);
+}
+
+function escapeHtml(str = '') {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function checkAdmin(req, res, next) {
@@ -145,10 +154,87 @@ app.post('/api/admin/login', (req, res) => {
   res.status(401).json({ success: false });
 });
 
-// Fallback route for per-app pretty URLs: /app/some-app-slug -> serves app.html,
-// which reads the slug from the URL and fetches details via the API.
-app.get('/app/:slug', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'app.html'));
+// ---------- SEO ----------
+
+// robots.txt points crawlers at the sitemap
+app.get('/robots.txt', (req, res) => {
+  const base = `${req.protocol}://${req.get('host')}`;
+  res.type('text/plain').send(
+    `User-agent: *\nAllow: /\nDisallow: /admin.html\nSitemap: ${base}/sitemap.xml\n`
+  );
+});
+
+// Dynamic sitemap.xml — lists home, the apps listing, and every app's own page,
+// so every auto-generated app page gets discovered and indexed by Google.
+app.get('/sitemap.xml', async (req, res) => {
+  const base = `${req.protocol}://${req.get('host')}`;
+  const { data: apps } = await supabase
+    .from('apps')
+    .select('slug, created_at')
+    .order('created_at', { ascending: false });
+
+  const staticUrls = [
+    { loc: `${base}/`, priority: '1.0' },
+    { loc: `${base}/apps.html`, priority: '0.8' }
+  ];
+  const appUrls = (apps || []).map(a => ({
+    loc: `${base}/app/${a.slug}`,
+    lastmod: a.created_at ? new Date(a.created_at).toISOString() : undefined,
+    priority: '0.7'
+  }));
+
+  const urlXml = [...staticUrls, ...appUrls].map(u => `
+  <url>
+    <loc>${u.loc}</loc>
+    ${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}
+    <priority>${u.priority}</priority>
+  </url>`).join('');
+
+  res.type('application/xml').send(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urlXml}\n</urlset>`
+  );
+});
+
+// Fallback route for per-app pretty URLs: /app/some-app-slug -> serves app.html
+// with server-rendered <title>/description/Open-Graph tags for that specific app,
+// so search engines and link previews (WhatsApp, Instagram, etc.) show the real
+// app name, description and screenshot instead of the generic site defaults.
+// The page's own JS (app-detail.js) still fetches the full data client-side to
+// render the interactive content.
+app.get('/app/:slug', async (req, res) => {
+  const templatePath = path.join(__dirname, 'public', 'app.html');
+  let html = fs.readFileSync(templatePath, 'utf8');
+
+  const { data: appData } = await supabase
+    .from('apps')
+    .select('*')
+    .eq('slug', req.params.slug)
+    .single();
+
+  if (appData) {
+    const base = `${req.protocol}://${req.get('host')}`;
+    const url = `${base}/app/${appData.slug}`;
+    const title = `${escapeHtml(appData.name)} — Download APK | NOX Store`;
+    const desc = escapeHtml(
+      (appData.description && appData.description.slice(0, 155)) ||
+      `Download ${appData.name} APK v${appData.version || '1.0'} (${appData.size || 'N/A'}) free on NOX Store.`
+    );
+    const image = (appData.screenshots && appData.screenshots[0]) || '';
+
+    html = html
+      .replace(/<title>.*?<\/title>/, `<title>${title}</title>`)
+      .replace(
+        /<meta name="description" content=".*?">/,
+        `<meta name="description" content="${desc}">`
+      )
+      .replace(/<link rel="canonical" href=".*?">/, `<link rel="canonical" href="${url}">`)
+      .replace(
+        /<meta property="og:site_name" content="NOX STORE">/,
+        `<meta property="og:site_name" content="NOX STORE">\n<meta property="og:title" content="${title}">\n<meta property="og:description" content="${desc}">\n<meta property="og:url" content="${url}">${image ? `\n<meta property="og:image" content="${image}">` : ''}`
+      );
+  }
+
+  res.send(html);
 });
 
 // Local dev: run a normal server. On Vercel, the app is exported and Vercel
