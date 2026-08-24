@@ -8,7 +8,7 @@
 
   let w, h, dpr;
   let particles = [];
-  const COLORS = ['139,92,246', '34,211,238', '167,139,250']; // p, c, p2 (rgb)
+  const COLORS = ['0,255,106', '0,230,118', '57,255,140']; // matrix greens
   const COUNT = isSmall ? 26 : 55;
   const LINK_DIST = isSmall ? 90 : 130;
 
@@ -31,8 +31,33 @@
     }));
   }
 
+  const CHARS = '01アイウエオカキクケコサシスセソABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let columns = [];
+  let fontSize = 15;
+
+  function makeColumns() {
+    fontSize = window.innerWidth < 640 ? 13 : 15;
+    const colCount = Math.floor(w / (fontSize * dpr));
+    columns = Array.from({ length: colCount }, () => Math.floor(Math.random() * -40));
+  }
+
+  function drawRain() {
+    ctx.font = `${fontSize * dpr}px monospace`;
+    for (let i = 0; i < columns.length; i++) {
+      const char = CHARS[Math.floor(Math.random() * CHARS.length)];
+      const x = i * fontSize * dpr;
+      const y = columns[i] * fontSize * dpr;
+      ctx.fillStyle = 'rgba(0,255,106,0.16)';
+      ctx.fillText(char, x, y);
+      if (y > h && Math.random() > 0.975) columns[i] = 0;
+      columns[i]++;
+    }
+  }
+
   function step() {
-    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(5,8,5,0.06)';
+    ctx.fillRect(0, 0, w, h);
+    drawRain();
 
     for (const p of particles) {
       p.x += p.vx;
@@ -56,7 +81,7 @@
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);
           ctx.lineTo(b.x, b.y);
-          ctx.strokeStyle = `rgba(139,92,246,${0.12 * (1 - dist / (LINK_DIST * dpr))})`;
+          ctx.strokeStyle = `rgba(0,255,106,${0.14 * (1 - dist / (LINK_DIST * dpr))})`;
           ctx.lineWidth = 1;
           ctx.stroke();
         }
@@ -68,11 +93,12 @@
 
   resize();
   makeParticles();
+  makeColumns();
   step();
 
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { resize(); makeParticles(); }, 200);
+    resizeTimer = setTimeout(() => { resize(); makeParticles(); makeColumns(); }, 200);
   });
 })();

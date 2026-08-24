@@ -8,7 +8,7 @@ function renderApps(apps) {
   }
   grid.innerHTML = apps.map(app => `
     <a class="app-tile" href="/app/${app.slug}">
-      <div class="app-tile-icon">${initials(app.name)}</div>
+      ${appIcon(app, 'app-tile-icon')}
       <div class="app-tile-name">${app.name}</div>
       <div class="app-tile-meta">${starRating(app.rating)} · ${app.size || 'N/A'}</div>
       ${app.description ? `<div class="app-tile-desc">${escapeHtml(app.description)}</div>` : ''}

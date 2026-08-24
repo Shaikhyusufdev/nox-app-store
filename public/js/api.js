@@ -13,6 +13,15 @@ function initials(name) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 }
 
+// Renders a real uploaded icon <img> if present, otherwise falls back to the
+// letter badge. className should be 'app-tile-icon' or 'detail-icon' etc.
+function appIcon(app, className) {
+  if (app.icon_url) {
+    return `<img class="${className} icon-img" src="${app.icon_url}" alt="${app.name} icon" loading="lazy">`;
+  }
+  return `<div class="${className}">${initials(app.name)}</div>`;
+}
+
 function starRating(rating) {
   if (!rating) return 'N/A';
   return `★ ${Number(rating).toFixed(1)}`;

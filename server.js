@@ -96,7 +96,7 @@ app.get('/api/apps/:slug', async (req, res) => {
 app.post(
   '/api/admin/apps',
   checkAdmin,
-  upload.fields([{ name: 'screenshots', maxCount: 6 }]),
+  upload.fields([{ name: 'screenshots', maxCount: 6 }, { name: 'icon', maxCount: 1 }]),
   async (req, res) => {
     try {
       const { name, version, size, rating, description, keywords, apk_url } = req.body;
@@ -105,6 +105,12 @@ app.post(
       }
 
       const slug = makeSlug(name);
+
+      // Upload icon (if provided) to Supabase Storage
+      let iconUrl = '';
+      if (req.files && req.files.icon && req.files.icon[0]) {
+        iconUrl = await uploadFile('screenshots', req.files.icon[0], `${slug}/icon`);
+      }
 
       // Upload screenshots (if any) to Supabase Storage
       let screenshotUrls = [];
@@ -125,6 +131,7 @@ app.post(
           rating: rating ? parseFloat(rating) : null,
           description: description || '',
           keywords: keywords || '',
+          icon_url: iconUrl || '',
           screenshots: screenshotUrls,
           apk_url
         }])
@@ -222,7 +229,7 @@ app.get('/app/:slug', async (req, res) => {
       (appData.description && appData.description.slice(0, 155)) ||
       `Download ${appData.name} APK v${appData.version || '1.0'} (${appData.size || 'N/A'}) free on NOX Store.`
     );
-    const image = (appData.screenshots && appData.screenshots[0]) || '';
+    const image = appData.icon_url || (appData.screenshots && appData.screenshots[0]) || '';
     const keywords = escapeHtml(
       appData.keywords ||
       `${appData.name}, ${appData.name} apk, ${appData.name} download, download ${appData.name} apk, ${appData.name} for android`

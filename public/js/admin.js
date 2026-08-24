@@ -28,6 +28,8 @@ document.getElementById('appForm').onsubmit = async (e) => {
 
   const fd = new FormData();
   fd.append('name', document.getElementById('f_name').value);
+  const iconFile = document.getElementById('f_icon').files[0];
+  if (iconFile) fd.append('icon', iconFile);
   fd.append('version', document.getElementById('f_version').value);
   fd.append('size', document.getElementById('f_size').value);
   fd.append('rating', document.getElementById('f_rating').value);

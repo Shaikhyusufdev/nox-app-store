@@ -16,7 +16,9 @@ async function loadHome() {
     content.innerHTML = `
       <div class="hero">
         <div class="eyebrow">// latest release</div>
-        <div class="detail-icon" style="margin:0 auto">${initials(app.name)}</div>
+        ${app.icon_url
+          ? `<img class="detail-icon icon-img" style="margin:0 auto" src="${app.icon_url}" alt="${app.name} icon">`
+          : `<div class="detail-icon" style="margin:0 auto">${initials(app.name)}</div>`}
         <div class="hero-name">${app.name}</div>
         <div class="hero-meta">
           <span>${starRating(app.rating)}</span><span class="dot">·</span>

@@ -19,7 +19,7 @@ async function loadDetail() {
 
     detail.innerHTML = `
       <div class="detail-top">
-        <div class="detail-icon">${initials(app.name)}</div>
+        ${appIcon(app, 'detail-icon')}
         <div>
           <div class="detail-name">${app.name}</div>
           <div class="detail-stats">
