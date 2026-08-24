@@ -17,3 +17,11 @@ function starRating(rating) {
   if (!rating) return 'N/A';
   return `★ ${Number(rating).toFixed(1)}`;
 }
+
+function escapeHtml(str = '') {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}

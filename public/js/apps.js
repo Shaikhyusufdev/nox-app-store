@@ -11,6 +11,7 @@ function renderApps(apps) {
       <div class="app-tile-icon">${initials(app.name)}</div>
       <div class="app-tile-name">${app.name}</div>
       <div class="app-tile-meta">${starRating(app.rating)} · ${app.size || 'N/A'}</div>
+      ${app.description ? `<div class="app-tile-desc">${escapeHtml(app.description)}</div>` : ''}
     </a>
   `).join('');
 }
