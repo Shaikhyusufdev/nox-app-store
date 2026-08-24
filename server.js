@@ -99,7 +99,7 @@ app.post(
   upload.fields([{ name: 'screenshots', maxCount: 6 }]),
   async (req, res) => {
     try {
-      const { name, version, size, rating, description, apk_url } = req.body;
+      const { name, version, size, rating, description, keywords, apk_url } = req.body;
       if (!name || !apk_url) {
         return res.status(400).json({ error: 'App name and APK link are required' });
       }
@@ -124,6 +124,7 @@ app.post(
           size: size || 'N/A',
           rating: rating ? parseFloat(rating) : null,
           description: description || '',
+          keywords: keywords || '',
           screenshots: screenshotUrls,
           apk_url
         }])
@@ -174,19 +175,21 @@ app.get('/sitemap.xml', async (req, res) => {
     .order('created_at', { ascending: false });
 
   const staticUrls = [
-    { loc: `${base}/`, priority: '1.0' },
-    { loc: `${base}/apps.html`, priority: '0.8' }
+    { loc: `${base}/`, priority: '1.0', changefreq: 'daily' },
+    { loc: `${base}/apps.html`, priority: '0.8', changefreq: 'daily' }
   ];
   const appUrls = (apps || []).map(a => ({
     loc: `${base}/app/${a.slug}`,
     lastmod: a.created_at ? new Date(a.created_at).toISOString() : undefined,
-    priority: '0.7'
+    priority: '0.7',
+    changefreq: 'weekly'
   }));
 
   const urlXml = [...staticUrls, ...appUrls].map(u => `
   <url>
     <loc>${u.loc}</loc>
     ${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}
+    <changefreq>${u.changefreq}</changefreq>
     <priority>${u.priority}</priority>
   </url>`).join('');
 
@@ -220,6 +223,33 @@ app.get('/app/:slug', async (req, res) => {
       `Download ${appData.name} APK v${appData.version || '1.0'} (${appData.size || 'N/A'}) free on NOX Store.`
     );
     const image = (appData.screenshots && appData.screenshots[0]) || '';
+    const keywords = escapeHtml(
+      appData.keywords ||
+      `${appData.name}, ${appData.name} apk, ${appData.name} download, download ${appData.name} apk, ${appData.name} for android`
+    );
+
+    // JSON-LD structured data helps Google show rich results (rating stars,
+    // app icon, etc.) directly in search — big lever for per-app ranking.
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      name: appData.name,
+      operatingSystem: 'ANDROID',
+      applicationCategory: 'MobileApplication',
+      softwareVersion: appData.version || '1.0',
+      description: (appData.description || `Download ${appData.name} APK on NOX Store.`).slice(0, 300),
+      url,
+      ...(image ? { image } : {}),
+      ...(appData.rating ? {
+        aggregateRating: {
+          '@type': 'AggregateRating',
+          ratingValue: appData.rating,
+          bestRating: '5',
+          ratingCount: 1
+        }
+      } : {}),
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }
+    };
 
     html = html
       .replace(/<title>.*?<\/title>/, `<title>${title}</title>`)
@@ -230,8 +260,9 @@ app.get('/app/:slug', async (req, res) => {
       .replace(/<link rel="canonical" href=".*?">/, `<link rel="canonical" href="${url}">`)
       .replace(
         /<meta property="og:site_name" content="NOX STORE">/,
-        `<meta property="og:site_name" content="NOX STORE">\n<meta property="og:title" content="${title}">\n<meta property="og:description" content="${desc}">\n<meta property="og:url" content="${url}">${image ? `\n<meta property="og:image" content="${image}">` : ''}`
-      );
+        `<meta name="keywords" content="${keywords}">\n<meta property="og:site_name" content="NOX STORE">\n<meta property="og:title" content="${title}">\n<meta property="og:description" content="${desc}">\n<meta property="og:url" content="${url}">${image ? `\n<meta property="og:image" content="${image}">` : ''}\n<meta name="twitter:card" content="${image ? 'summary_large_image' : 'summary'}">\n<meta name="twitter:title" content="${title}">\n<meta name="twitter:description" content="${desc}">${image ? `\n<meta name="twitter:image" content="${image}">` : ''}`
+      )
+      .replace('</head>', `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>\n</head>`);
   }
 
   res.send(html);
