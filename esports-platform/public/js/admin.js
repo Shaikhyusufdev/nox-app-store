@@ -63,13 +63,16 @@
       '<span class="pill">' + esc(admin.role) + '</span></div>' +
       '<button class="btn ghost" id="a-logout">Logout</button></div>' +
       '<div class="a-card" id="games-form"></div>' +
-      '<div class="a-card"><h2>Games</h2><div id="games-list"><div class="empty">Loading...</div></div></div></div>';
+      '<div class="a-card"><h2>Games</h2><div id="games-list"><div class="empty">Loading...</div></div></div>' +
+      '<div class="a-card" id="t-form"></div>' +
+      '<div class="a-card"><h2>Tournaments</h2><div id="t-list"><div class="empty">Loading...</div></div></div></div>';
     document.getElementById('a-logout').addEventListener('click', async () => {
       try { await call('POST', '/api/admin/logout'); } catch (e) { /* ignore */ }
       toast('Logged out');
       showLogin();
     });
     initGames();
+    initTournaments();
   }
 
   // ---------- Games ----------
@@ -153,6 +156,116 @@
   }
 
   function initGames() { editing = null; renderForm(); loadGames(); }
+
+  // ---------- Tournaments ----------
+  const T_STATUS = [
+    ['upcoming', 'Upcoming (join band)'],
+    ['registration_open', 'Registration open (join chalu)'],
+    ['full', 'Full'],
+    ['ongoing', 'Ongoing'],
+    ['completed', 'Completed'],
+    ['cancelled', 'Cancelled'],
+  ];
+  let tournaments = [];
+  let tGames = [];
+  let tEditing = null;
+
+  function toLocalInput(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const p = (n) => String(n).padStart(2, '0');
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function fmtDate(iso) {
+    try { return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso; }
+  }
+
+  function renderTForm() {
+    const t = tEditing || { game_id: '', title: '', description: '', rules: '', banner_url: '', entry_fee: 0, prize_pool: 0, max_players: 50, starts_at: '', status: 'upcoming' };
+    const box = document.getElementById('t-form');
+    const gameOpts = '<option value="">-- Game chuno --</option>' + tGames.map((g) =>
+      '<option value="' + esc(g.id) + '"' + (g.id === t.game_id ? ' selected' : '') + '>' + esc(g.name) + (g.is_active ? '' : ' (hidden)') + '</option>').join('');
+    const statusOpts = T_STATUS.map((s) => '<option value="' + s[0] + '"' + (s[0] === t.status ? ' selected' : '') + '>' + esc(s[1]) + '</option>').join('');
+    box.innerHTML =
+      '<h2>' + (tEditing ? 'Edit tournament' : 'Add tournament') + '</h2>' +
+      '<label for="t-game">Game</label><select id="t-game">' + gameOpts + '</select>' +
+      '<label for="t-title">Title</label><input id="t-title" maxlength="100" value="' + esc(t.title) + '">' +
+      '<div class="grid2"><div><label for="t-fee">Entry fee (Rs)</label><input id="t-fee" type="number" min="0" step="1" value="' + esc(t.entry_fee) + '"></div>' +
+      '<div><label for="t-prize">Prize pool (Rs)</label><input id="t-prize" type="number" min="0" step="1" value="' + esc(t.prize_pool) + '"></div>' +
+      '<div><label for="t-max">Max players</label><input id="t-max" type="number" min="2" max="1000" value="' + esc(t.max_players) + '"></div>' +
+      '<div><label for="t-start">Start date & time</label><input id="t-start" type="datetime-local" value="' + esc(toLocalInput(t.starts_at)) + '"></div></div>' +
+      '<label for="t-status">Status</label><select id="t-status">' + statusOpts + '</select>' +
+      '<label for="t-banner">Banner URL (https://)</label><input id="t-banner" maxlength="500" value="' + esc(t.banner_url) + '">' +
+      '<label for="t-desc">Description</label><input id="t-desc" maxlength="2000" value="' + esc(t.description) + '">' +
+      '<label for="t-rules">Rules</label><input id="t-rules" maxlength="4000" value="' + esc(t.rules) + '">' +
+      '<div class="err" id="t-err"></div>' +
+      '<button class="btn" id="t-save">' + (tEditing ? 'Save changes' : 'Add tournament') + '</button>' +
+      (tEditing ? '<button class="btn ghost" id="t-cancel" style="margin-top:10px;width:100%">Cancel</button>' : '');
+    document.getElementById('t-save').addEventListener('click', saveTournament);
+    const c = document.getElementById('t-cancel');
+    if (c) c.addEventListener('click', () => { tEditing = null; renderTForm(); });
+  }
+
+  async function saveTournament() {
+    const err = document.getElementById('t-err');
+    const btn = document.getElementById('t-save');
+    err.textContent = '';
+    const startVal = document.getElementById('t-start').value;
+    if (!startVal) { err.textContent = 'Start date/time daalo'; return; }
+    const payload = {
+      game_id: document.getElementById('t-game').value,
+      title: document.getElementById('t-title').value.trim(),
+      entry_fee: Number(document.getElementById('t-fee').value) || 0,
+      prize_pool: Number(document.getElementById('t-prize').value) || 0,
+      max_players: parseInt(document.getElementById('t-max').value, 10) || 0,
+      starts_at: new Date(startVal).toISOString(),
+      status: document.getElementById('t-status').value,
+      banner_url: document.getElementById('t-banner').value.trim(),
+      description: document.getElementById('t-desc').value.trim(),
+      rules: document.getElementById('t-rules').value.trim(),
+    };
+    btn.disabled = true;
+    try {
+      if (tEditing) await call('PATCH', '/api/admin/tournaments/' + tEditing.id, payload);
+      else await call('POST', '/api/admin/tournaments', payload);
+      toast(tEditing ? 'Saved' : 'Tournament added');
+      tEditing = null;
+      renderTForm();
+      await loadTournaments();
+    } catch (e) {
+      err.textContent = e.message;
+      btn.disabled = false;
+    }
+  }
+
+  function renderTList() {
+    const box = document.getElementById('t-list');
+    if (!tournaments.length) { box.innerHTML = '<div class="empty">Abhi koi tournament nahi. Upar form se pehla tournament add karo.</div>'; return; }
+    box.innerHTML = tournaments.map((t) =>
+      '<div class="row"><div class="info"><b>' + esc(t.title) + '</b><span>' + esc(t.game_name) +
+      ' | Entry Rs' + esc(t.entry_fee) + ' | Prize Rs' + esc(t.prize_pool) +
+      ' | ' + esc(t.joined_count) + '/' + esc(t.max_players) + ' joined | ' + esc(fmtDate(t.starts_at)) + '</span></div>' +
+      '<span class="pill' + ((t.status === 'cancelled' || t.status === 'completed') ? ' off' : '') + '">' + esc(t.status) + '</span>' +
+      '<button class="btn ghost small" data-tedit="' + esc(t.id) + '">Edit</button></div>'
+    ).join('');
+    box.querySelectorAll('[data-tedit]').forEach((b) => b.addEventListener('click', () => {
+      tEditing = tournaments.find((x) => x.id === b.getAttribute('data-tedit')) || null;
+      renderTForm();
+      document.getElementById('t-form').scrollIntoView({ behavior: 'smooth' });
+    }));
+  }
+
+  async function loadTournaments() {
+    try { tournaments = (await call('GET', '/api/admin/tournaments')).tournaments || []; renderTList(); }
+    catch (e) { document.getElementById('t-list').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+  }
+
+  async function initTournaments() {
+    tEditing = null;
+    try { tGames = (await call('GET', '/api/admin/games')).games || []; } catch (e) { tGames = []; }
+    renderTForm();
+    loadTournaments();
+  }
 
   call('GET', '/api/admin/me').then((out) => showDash(out.admin)).catch(showLogin);
 })();
