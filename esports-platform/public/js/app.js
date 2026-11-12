@@ -26,7 +26,7 @@
     home: svg('<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'),
     wallet: svg('<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>'),
     user: svg('<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
-    coin: svg('<circle cx="12" cy="12" r="9"/><path d="M14.5 9a3 3 0 0 0-2.5-1c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2a3 3 0 0 1-2.5-1"/><path d="M12 6v2M12 16v2"/>'),
+    coin: svg('<circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/>'),
     headset: svg('<path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z"/><path d="M21 16v2a4 4 0 0 1-4 4h-5"/>'),
     clock: svg('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
     play: svg('<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>'),
@@ -77,7 +77,7 @@
   };
 
   function render() {
-    clearInterval(cdTimer); // match countdown purane page ka band
+    clearInterval(cdTimer);
     const p = path();
     if (!state.user && !PUBLIC.includes(p)) return go('/login');
     if (state.user && PUBLIC.includes(p)) return go('/');
@@ -98,7 +98,7 @@
     return `<nav class="nav" aria-label="Main">
       ${item('#/rank', 'rank', 'Rank', 'trophy')}
       ${item('#/earn', 'earn', 'Earn', 'gift')}
-      ${item('#/', 'home', '', 'home', 'home')}
+      ${item('#/', 'home', 'Home', 'home', 'home')}
       ${item('#/wallet', 'wallet', 'Wallet', 'wallet')}
       ${item('#/profile', 'profile', 'Profile', 'user')}
     </nav>`;
@@ -232,17 +232,17 @@
     const name = state.user.username || 'Player';
 
     const quick = [
-      ['#/earn', 'Earn', 'coin', '#d9a23a'],
-      ['#/rank', 'Top Players', 'trophy', '#1f9a8f'],
-      ['#/wallet', 'My Wallet', 'wallet', '#2fae7c'],
-      ['#/support', 'Support', 'headset', '#6a5acd'],
+      ['#/earn', 'Earn', 'coin', '#ffc83d'],
+      ['#/rank', 'Top Players', 'trophy', '#38e1ff'],
+      ['#/wallet', 'My Wallet', 'wallet', '#35d98a'],
+      ['#/support', 'Support', 'headset', '#ff7a3d'],
     ].map(([href, label, icon, c2]) =>
       `<a href="${href}"><span class="ico" style="--c:${c2}">${ICON[icon]}</span>${label}</a>`).join('');
 
     const contests = [
-      ['Upcoming', 'clock', '#1f9a8f'],
-      ['Ongoing', 'play', '#6a5acd'],
-      ['Completed', 'check', '#2fae7c'],
+      ['Upcoming', 'clock', '#38e1ff'],
+      ['Ongoing', 'play', '#ff9a3d'],
+      ['Completed', 'check', '#35d98a'],
     ].map(([label, icon, c2]) =>
       `<button class="contest" data-contest="${label.toLowerCase()}" style="--c:${c2}">${ICON[icon]}${label}</button>`).join('');
 
@@ -253,7 +253,7 @@
         <a class="chip" href="#/wallet" data-count="${Number(balance) || 0}">${money(balance)}</a>
       </header>
       <div class="quick">${quick}</div>
-      <div class="sec-title">${ICON.shield}MY CONTESTS</div>
+      <div class="sec-title">My contests</div>
       <div class="contests">${contests}</div>
       <div id="mlist">${game ? '' : `<div class="empty"><b>Abhi koi game nahi hai</b>Admin panel se game add hone ke baad yaha matches dikhenge.</div>`}</div>
       ${navHtml('home')}
@@ -283,52 +283,67 @@
   let cdTimer;
 
   const MATCH_CSS = `
-.mt-tabs{display:flex;gap:8px;margin:14px 0 8px}
-.mt-tabs button{flex:1;padding:11px 0;border-radius:12px;border:1px solid #d9d5cf;background:#fff;font-weight:700;font-size:14px;color:#33302b;cursor:pointer}
-.mt-tabs button.on{background:linear-gradient(135deg,#1fa99b,#5b52d6);color:#fff;border-color:transparent}
-.mt-chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+.mt-tabs{display:flex;gap:6px;margin:14px 0 8px}
+.mt-tabs button{flex:1;padding:10px 0;border:1px solid var(--edge);background:var(--panel);color:var(--muted);font:600 14px var(--font-head);cursor:pointer;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%);transition:all .18s}
+.mt-tabs button.on{background:var(--grad);color:#1a0a00;border-color:transparent}
+.mt-chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
 .mt-chips::-webkit-scrollbar{display:none}
-.mt-chips button{flex:none;padding:7px 14px;border-radius:999px;border:1px solid #d9d5cf;background:#fff;font-size:13px;font-weight:600;color:#33302b;cursor:pointer}
-.mt-chips button.on{background:#1f2430;color:#fff;border-color:#1f2430}
-.mt-card{display:block;width:100%;text-align:left;background:#fff;border:1px solid #e6e2db;border-radius:16px;padding:14px;margin-bottom:12px;cursor:pointer;position:relative;color:#1f2430;font:inherit}
-.mt-card h3{margin:0 0 4px;font-size:16px;padding-right:112px}
-.mt-card .meta{font-size:12.5px;color:#6b665e;margin-bottom:10px}
-.mt-card .row3{display:flex;gap:8px}
-.mt-card .row3 div{flex:1;background:#f5f3f0;border-radius:10px;padding:8px;text-align:center}
-.mt-card .row3 small{display:block;font-size:11px;color:#6b665e}
-.mt-card .row3 b{font-size:14px}
-.mt-bar{height:6px;border-radius:6px;background:#ece8e1;margin-top:10px;overflow:hidden}
-.mt-bar i{display:block;height:100%;background:linear-gradient(90deg,#1fa99b,#5b52d6)}
-.mt-cd{position:absolute;top:12px;right:12px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.4px;color:#fff;background:linear-gradient(135deg,#ff3d6e,#ff8a1f);box-shadow:0 0 0 0 rgba(255,61,110,.6);animation:mtGlow 1.6s ease-in-out infinite;font-variant-numeric:tabular-nums}
-.mt-cd.ok{background:linear-gradient(135deg,#1fa99b,#5b52d6);animation:none}
-@keyframes mtGlow{0%{box-shadow:0 0 0 0 rgba(255,61,110,.55),0 0 8px rgba(255,138,31,.5)}70%{box-shadow:0 0 0 10px rgba(255,61,110,0),0 0 18px rgba(255,138,31,.9)}100%{box-shadow:0 0 0 0 rgba(255,61,110,0),0 0 8px rgba(255,138,31,.5)}}
+.mt-chips button{flex:none;padding:7px 16px;border:1px solid var(--edge);background:var(--panel);color:var(--muted);font:600 13px var(--font-body);cursor:pointer;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.mt-chips button.on{color:var(--ice);background:rgba(56,225,255,.12);border-color:var(--ice)}
+.mt-card{display:block;width:100%;text-align:left;position:relative;overflow:hidden;padding:14px;margin-bottom:12px;cursor:pointer;color:var(--ink);font:inherit;border:1px solid transparent;background:linear-gradient(var(--panel),var(--panel)) padding-box,var(--edgegrad) border-box;clip-path:var(--cut);transition:scale .15s}
+.mt-card:active{scale:.985}
+.mt-card::after{content:"";position:absolute;top:0;bottom:0;left:-40%;width:30%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.12),transparent);transform:skewX(-20deg);transition:left .6s;pointer-events:none}
+@media (hover:hover){.mt-card:hover::after{left:130%}}
+.mt-card h3{margin:0 0 4px;font-size:17px;font-weight:700;padding-right:130px}
+.mt-card .meta{font-size:12px;color:var(--muted);margin-bottom:12px}
+.mt-card .row3{display:flex;gap:6px}
+.mt-card .row3 div{flex:1;background:var(--panel2);border-bottom:2px solid var(--edge);padding:8px;text-align:center}
+.mt-card .row3 div:nth-child(2){border-color:var(--gold)}
+.mt-card .row3 div:nth-child(2) b{color:var(--gold)}
+.mt-card .row3 small{display:block;font-size:11px;color:var(--muted)}
+.mt-card .row3 b{font:700 15px var(--font-head)}
+.mt-bar{height:6px;background:#222a3e;margin-top:12px;overflow:hidden;transform:skewX(-20deg)}
+.mt-bar i{display:block;height:100%;background:var(--fire);box-shadow:0 0 8px rgba(255,91,31,.7)}
+.mt-cd{position:absolute;top:12px;right:14px;z-index:1;padding:5px 10px;font:700 12px var(--font-head);letter-spacing:.04em;color:#031a20;background:var(--ice);clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%);animation:mtGlow 1.8s ease-in-out infinite}
+.mt-cd.live{background:var(--live);color:#fff;font-size:13px;animation:mtGlowR 1.2s ease-in-out infinite}
+.mt-cd.ok{background:#2a3148;color:var(--muted);animation:none}
+@keyframes mtGlow{50%{filter:drop-shadow(0 0 8px rgba(56,225,255,.9))}}
+@keyframes mtGlowR{50%{filter:drop-shadow(0 0 9px rgba(255,59,92,.95))}}
 @media (prefers-reduced-motion:reduce){.mt-cd{animation:none}}
-.mt-head{position:relative;background:#fff;border:1px solid #e6e2db;border-radius:16px;padding:14px;margin:10px 0}
-.mt-head h2{margin:0 0 4px;font-size:18px;padding-right:120px}
-.mt-head .meta{font-size:12.5px;color:#6b665e}
+.mt-head{position:relative;padding:14px;margin:10px 0;border:1px solid transparent;background:linear-gradient(var(--panel),var(--panel)) padding-box,var(--edgegrad) border-box;clip-path:var(--cut)}
+.mt-head h2{margin:0 0 4px;font-size:19px;font-weight:700;padding-right:130px}
+.mt-head .meta{font-size:12.5px;color:var(--muted)}
+.mt-head .meta b{color:var(--ink)}
 .mt-teams{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
-.mt-team{border-radius:16px;padding:10px;border:2px solid}
-.mt-team.red{border-color:#ff5a5f;background:#fff4f4}
-.mt-team.blue{border-color:#3b82f6;background:#f2f7ff}
-.mt-team h4{margin:0 0 8px;text-align:center;font-size:13px;letter-spacing:1px}
-.mt-team.red h4{color:#d6333a}.mt-team.blue h4{color:#2563eb}
+.mt-team{padding:10px;border:1.5px solid;clip-path:var(--cut-sm)}
+.mt-team.red{border-color:#ff4d5e;background:rgba(255,77,94,.08)}
+.mt-team.blue{border-color:#3b82f6;background:rgba(59,130,246,.08)}
+.mt-team h4{margin:0 0 8px;text-align:center;font-size:13px;letter-spacing:.1em}
+.mt-team.red h4{color:#ff6b7a}.mt-team.blue h4{color:#6ea8ff}
 .mt-brgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}
-.mt-brteam{border:1px solid #e6e2db;background:#fff;border-radius:14px;padding:8px}
-.mt-brteam h4{margin:0 0 6px;font-size:12px;color:#6b665e;letter-spacing:.6px}
-.mt-slot{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border-radius:10px;margin-bottom:6px;font:inherit;font-size:13px;text-align:left;border:1px dashed #bdb8b0;background:#fff;color:#1f2430}
+.mt-brteam{border:1px solid var(--edge);background:var(--panel);padding:8px;clip-path:var(--cut-sm)}
+.mt-brteam h4{margin:0 0 6px;font-size:12px;color:var(--muted);letter-spacing:.08em}
+.mt-slot{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;margin-bottom:6px;font:inherit;font-size:13px;text-align:left;border:1px dashed #3a4262;background:var(--panel2);color:var(--ink)}
 .mt-slot:last-child{margin-bottom:0}
-.mt-slot i{font-style:normal;font-weight:800;font-size:11px;min-width:20px;height:20px;border-radius:6px;background:#ece8e1;display:grid;place-items:center}
+.mt-slot i{font-style:normal;font:700 11px var(--font-head);min-width:22px;height:22px;background:#222a3e;display:grid;place-items:center;clip-path:var(--hex)}
 .mt-slot b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mt-slot.open{cursor:pointer}
-.mt-slot.open b{color:#1f9a8f}
-.mt-slot.open:disabled{cursor:default;opacity:.55}
-.mt-slot.taken{border-style:solid;border-color:#e6e2db;background:#faf9f7}
-.mt-slot.me{border-color:#1fa99b;background:#eafaf7}
-.mt-slot em{font-style:normal;font-size:10px;font-weight:800;color:#fff;background:#1fa99b;border-radius:6px;padding:2px 6px}
-.mt-note{font-size:13px;color:#6b665e;text-align:center;margin:8px 0}
-.mt-room{margin:10px 0;padding:14px;border-radius:16px;background:#1f2430;color:#fff}
-.mt-copy{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 0;background:none;border:0;color:#fff;font:inherit;cursor:pointer;text-align:left}.mt-copy b{flex:1;text-align:right;font-size:16px;letter-spacing:.5px;word-break:break-all}.mt-copy em{font-style:normal;font-size:10px;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:999px;white-space:nowrap}.mt-copy+.mt-copy{border-top:1px solid rgba(255,255,255,.15)}
+.mt-slot.open b{color:var(--ice)}
+.mt-slot.open:disabled{cursor:default;opacity:.5}
+.mt-slot.taken{border-style:solid;border-color:var(--edge);background:var(--panel)}
+.mt-slot.me{border-color:var(--ice);background:rgba(56,225,255,.1)}
+.mt-slot em{font-style:normal;font:700 10px var(--font-head);color:#031a20;background:var(--ice);padding:2px 6px}
+.mt-note{font-size:13px;color:var(--muted);text-align:center;margin:8px 0}
+.mt-room{position:relative;margin:10px 0;padding:6px 14px;border:1px solid var(--fire);border-left-width:3px;background:linear-gradient(135deg,rgba(255,91,31,.12),var(--panel2));clip-path:var(--cut-sm)}
+.mt-copy{position:relative;display:block;width:100%;padding:12px 0;background:none;border:0;color:var(--ink);font:inherit;cursor:pointer;text-align:left}
+.mt-copy span{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.mt-copy b{display:block;margin-top:2px;font:700 24px var(--font-head);letter-spacing:.1em;color:var(--gold);word-break:break-all;text-shadow:0 0 14px rgba(255,200,61,.35)}
+.mt-copy+.mt-copy b{color:var(--ice);text-shadow:0 0 14px rgba(56,225,255,.35)}
+.mt-copy em{position:absolute;right:0;top:50%;translate:0 -50%;font-style:normal;font:700 10px var(--font-head);letter-spacing:.06em;background:#222a3e;color:var(--ink);padding:5px 9px;clip-path:polygon(5px 0,100% 0,calc(100% - 5px) 100%,0 100%);white-space:nowrap}
+.mt-copy.done em{background:var(--ok);color:#03210f}
+.mt-copy+.mt-copy{border-top:1px solid rgba(255,255,255,.1)}
 .mt-conf{font-size:14px;line-height:1.7;margin-bottom:10px}
+.mt-conf small{color:var(--muted)}
 `;
   function injectMatchCss() {
     if (document.getElementById('match-css')) return;
@@ -338,24 +353,32 @@
     document.head.appendChild(st);
   }
 
-  const pad2 = (n) => String(n).padStart(2, '0');
+  // match ka start time: "Today, 9:30 PM" / "Tomorrow, ..." / "14 Nov, 1:40 AM"
+  function startLabel(iso) {
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const tm = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase();
+    const key = (x) => x.getFullYear() + '-' + x.getMonth() + '-' + x.getDate();
+    const now = new Date(), tom = new Date(now.getTime() + 86400000);
+    if (key(d) === key(now)) return 'Today, ' + tm;
+    if (key(d) === key(tom)) return 'Tomorrow, ' + tm;
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ', ' + tm;
+  }
   function cdText(iso, status) {
     if (status === 'completed') return 'ENDED';
     if (status === 'cancelled') return 'CANCELLED';
-    const ms = new Date(iso).getTime() - Date.now();
-    if (ms <= 0) return status === 'ongoing' ? 'LIVE' : fmtDate(iso);
-    const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
-    if (d > 0) return d + 'd ' + h + 'h ' + m + 'm';
-    return pad2(h) + ':' + pad2(m) + ':' + pad2(s % 60);
+    if (status === 'ongoing') return 'LIVE';
+    return startLabel(iso);
   }
   function tickCd() {
     $app.querySelectorAll('[data-cd]').forEach((el) => {
       const st = el.getAttribute('data-st');
       el.textContent = cdText(el.getAttribute('data-cd'), st);
+      el.classList.toggle('live', st === 'ongoing');
       el.classList.toggle('ok', st === 'completed' || st === 'cancelled');
     });
   }
-  function startCd() { clearInterval(cdTimer); tickCd(); cdTimer = setInterval(tickCd, 1000); }
+  function startCd() { clearInterval(cdTimer); tickCd(); }
   const cdHtml = (t) => `<span class="mt-cd" data-cd="${esc(t.starts_at)}" data-st="${esc(t.status)}">...</span>`;
 
   function matchCard(t, catName) {
@@ -363,7 +386,7 @@
     return `<button type="button" class="mt-card" data-match="${esc(t.id)}">
       ${cdHtml(t)}
       <h3>${esc(t.title)}</h3>
-      <div class="meta">${esc(catName)} &middot; ${esc(MODE_NAME[t.mode] || '')} &middot; ${esc(ST_LABEL[t.status] || t.status)} &middot; ${esc(fmtDate(t.starts_at))}</div>
+      <div class="meta">${esc(catName)} &middot; ${esc(MODE_NAME[t.mode] || '')} &middot; ${esc(ST_LABEL[t.status] || t.status)}</div>
       <div class="row3">
         <div><small>Entry</small><b>${Number(t.entry_fee) > 0 ? money(t.entry_fee) : 'FREE'}</b></div>
         <div><small>Prize pool</small><b>${money(t.prize_pool)}</b></div>
@@ -435,17 +458,24 @@
     legacy();
     return Promise.resolve();
   }
+  // Room ID / Password: sirf joined user ko (server hi bhejta hai), popup aur match page dono me yahi design
   const roomHtml = (room) => `<div class="mt-room">
-      <button type="button" class="mt-copy" data-copy="${esc(room.room_id)}"><span>Room ID</span><b>${esc(room.room_id)}</b><em>Tap to copy</em></button>
-      <button type="button" class="mt-copy" data-copy="${esc(room.room_password)}"><span>Password</span><b>${esc(room.room_password)}</b><em>Tap to copy</em></button>
+      <button type="button" class="mt-copy" data-copy="${esc(room.room_id)}"><span>Room ID</span><b>${esc(room.room_id)}</b><em>TAP TO COPY</em></button>
+      <button type="button" class="mt-copy" data-copy="${esc(room.room_password)}"><span>Password</span><b>${esc(room.room_password)}</b><em>TAP TO COPY</em></button>
     </div>`;
   function bindCopy(root) {
     root.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => {
-      copyText(b.getAttribute('data-copy')).then(() => toast('Copied!'));
+      copyText(b.getAttribute('data-copy')).then(() => {
+        toast('Copied!');
+        const em = b.querySelector('em'), old = em ? em.textContent : '';
+        b.classList.add('done');
+        if (em) em.textContent = 'COPIED';
+        setTimeout(() => { b.classList.remove('done'); if (em) em.textContent = old; }, 1400);
+      });
     }));
   }
   function roomSheet(room) {
-    const s = openSheet('Room Details', `
+    const s = openSheet('Room details', `
       <div class="mt-conf">Match shuru hone par is Room ID aur Password se game me join karo.</div>
       ${roomHtml(room)}`);
     bindCopy(s.el);
@@ -495,7 +525,7 @@
     const dist = Array.isArray(t.prize_distribution) ? t.prize_distribution : [];
     const ordn = (n) => n + (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
     const prizeHtml = (t.layout === 'br' && dist.length)
-      ? `<div class="card" style="padding:14px;margin:10px 0"><b>Prizes</b>${dist.map((d) => `<div style="display:flex;justify-content:space-between;padding:6px 0"><span>${ordn(d.rank)}${size > 1 ? ' team' : ''}</span><b>${money(d.amount)}${size > 1 ? ' (' + money(Math.round(d.amount / size * 100) / 100) + ' each)' : ''}</b></div>`).join('')}${size > 1 ? '<small>Team ka prize players me barabar bantega.</small>' : ''}</div>`
+      ? `<div class="card" style="padding:14px;margin:10px 0"><b>Prizes</b>${dist.map((d) => `<div style="display:flex;justify-content:space-between;padding:6px 0"><span>${ordn(d.rank)}${size > 1 ? ' team' : ''}</span><b style="color:var(--gold)">${money(d.amount)}${size > 1 ? ' (' + money(Math.round(d.amount / size * 100) / 100) + ' each)' : ''}</b></div>`).join('')}${size > 1 ? '<small style="color:var(--muted)">Team ka prize players me barabar bantega.</small>' : ''}</div>`
       : '';
 
     $app.innerHTML = `<div class="screen">
@@ -503,14 +533,14 @@
       <div class="mt-head">
         ${cdHtml(t)}
         <h2>${esc(t.title)}</h2>
-        <div class="meta">${esc(t.category_name || 'Match')} &middot; ${esc(MODE_NAME[t.mode] || '')} &middot; ${esc(ST_LABEL[t.status] || t.status)} &middot; ${esc(fmtDate(t.starts_at))}</div>
+        <div class="meta">${esc(t.category_name || 'Match')} &middot; ${esc(MODE_NAME[t.mode] || '')} &middot; ${esc(ST_LABEL[t.status] || t.status)}</div>
         <div class="meta" style="margin-top:6px">Entry <b>${Number(t.entry_fee) > 0 ? money(t.entry_fee) : 'FREE'}</b> &middot; Prize <b>${money(t.prize_pool)}</b> &middot; Joined <b>${t.joined_count}/${t.max_players}</b></div>
       </div>
       ${room}
       ${prizeHtml}
       <div class="mt-note">${esc(note)}</div>
       ${board}
-      ${t.rules ? `<div class="card" style="padding:14px;margin-top:10px"><b>Rules</b><p style="margin:6px 0 0;white-space:pre-wrap">${esc(t.rules)}</p></div>` : ''}
+      ${t.rules ? `<div class="card" style="padding:14px;margin-top:10px"><b>Rules</b><p style="margin:6px 0 0;white-space:pre-wrap;color:var(--muted)">${esc(t.rules)}</p></div>` : ''}
       ${navHtml('home')}
     </div>`;
     $app.querySelectorAll('button.mt-slot.open:not(:disabled)').forEach((b) => b.addEventListener('click', () =>
@@ -565,8 +595,8 @@
     const body = shown.length
       ? shown.map((r) => `<button type="button" class="mt-card" data-match="${esc(r.tournaments.id)}">${cdHtml(r.tournaments)}
           <h3>${esc(r.tournaments.title)}</h3>
-          <div class="meta">${esc(catName(r.tournaments.category_id))} &middot; ${esc(MODE_NAME[r.tournaments.mode] || '')} &middot; ${esc(fmtDate(r.tournaments.starts_at))}</div>
-          <div class="meta">Aapka slot: Team ${esc(r.team_no == null ? '-' : r.team_no)}, Slot ${esc(r.slot_no == null ? '-' : r.slot_no)}</div></button>`).join('')
+          <div class="meta">${esc(catName(r.tournaments.category_id))} &middot; ${esc(MODE_NAME[r.tournaments.mode] || '')}</div>
+          <div class="meta" style="margin-bottom:0">Aapka slot: Team ${esc(r.team_no == null ? '-' : r.team_no)}, Slot ${esc(r.slot_no == null ? '-' : r.slot_no)}</div></button>`).join('')
       : `<div class="empty"><b>Koi match nahi</b>Is section me abhi koi joined match nahi hai.</div>`;
     $app.innerHTML = `<div class="screen">
       ${subHeader('MY CONTESTS', balance)}
@@ -647,7 +677,7 @@
   const WD_MIN = 50, WD_FEE_PCT = 5, AF_MIN = 10, AF_MAX = 10000; // reference design; baad me admin settings se aayega
   const fmtDate = (s) => { try { return new Date(s).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch { return ''; } };
 
-  // neeche se aane wala popup (Add Funds / Withdraw)
+  // neeche se aane wala popup (Add Funds / Withdraw / Slot / Room)
   function openSheet(title, html) {
     const wrap = document.createElement('div');
     wrap.className = 'sheet-wrap';
@@ -681,7 +711,7 @@
   }
 
   function addFundsSheet() {
-    const s = openSheet('Add Funds', `
+    const s = openSheet('Add funds', `
       <div class="field"><label for="af">Amount (${R})</label>
         <input id="af" type="number" inputmode="numeric" min="${AF_MIN}" max="${AF_MAX}" placeholder="Amount likho"></div>
       <div class="amts">${[50, 100, 200, 500].map((a) => `<button type="button" class="amt" data-a="${a}">${R}${a}</button>`).join('')}</div>
@@ -724,7 +754,7 @@
         <div class="field"><label for="bi">IFSC</label><input id="bi" type="text" autocomplete="off" maxlength="11"></div>
       </div>
       <div class="err" id="wde"></div>
-      <button class="btn" type="button" id="wdgo">Request Withdrawal</button>
+      <button class="btn" type="button" id="wdgo">Request withdrawal</button>
       <p class="note">Min ${R}${WD_MIN} &middot; ${WD_FEE_PCT}% fee. Sirf Winnings balance withdraw hota hai, Bonus nahi.</p>`);
     const $ = (id) => s.el.querySelector(id);
     let method = 'upi';
@@ -803,11 +833,11 @@
         </div>
       </div>
       <div class="tiles">
-        ${tile('Deposit', dep, 'Match join', '#1f9a8f')}
-        ${tile('Winnings', win, 'Withdrawable', '#2fae7c')}
-        ${tile('Bonus', bon, 'Sirf match join', '#6a5acd')}
+        ${tile('Deposit', dep, 'Match join', '#38e1ff')}
+        ${tile('Winnings', win, 'Withdrawable', '#35d98a')}
+        ${tile('Bonus', bon, 'Sirf match join', '#ff9a3d')}
       </div>
-      <div class="sec-title">${ICON.clock}HISTORY<button type="button" class="link" id="viewall" hidden>View All</button></div>
+      <div class="sec-title">History<button type="button" class="link" id="viewall" hidden>View all</button></div>
       <div id="txbox"></div>
       ${navHtml('wallet')}
     </div>`;
@@ -822,7 +852,7 @@
     drawTx();
     if (txs.length > 5) {
       va.hidden = false;
-      va.addEventListener('click', () => { all = !all; va.textContent = all ? 'Show Less' : 'View All'; drawTx(); });
+      va.addEventListener('click', () => { all = !all; va.textContent = all ? 'Show less' : 'View all'; drawTx(); });
     }
     document.getElementById('w-dep').addEventListener('click', addFundsSheet);
     document.getElementById('w-wd').addEventListener('click', () => withdrawSheet(win));
@@ -831,22 +861,24 @@
 
   /* ---------- Earn (Refer) ---------- */
   const EARN_CSS = `
-.rf-card{background:linear-gradient(135deg,#1f2430,#2d3350);color:#fff;border-radius:20px;padding:18px;margin:12px 0;text-align:center}
-.rf-card .rf-tag{display:block;letter-spacing:1.5px;opacity:.75;font-weight:700;font-size:12px}
-.rf-amt{font-size:48px;font-weight:800;line-height:1.1;margin:4px 0 6px;background:linear-gradient(135deg,#ffd36a,#ff8a1f);-webkit-background-clip:text;background-clip:text;color:transparent}
-.rf-card p{font-size:13px;opacity:.85;margin:0 0 14px;line-height:1.5}
-.rf-link{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px dashed rgba(255,255,255,.35);border-radius:12px;padding:6px 6px 6px 12px}
+.rf-card{padding:18px;margin:12px 0;text-align:center;border:1px solid transparent;background:linear-gradient(var(--panel),var(--panel)) padding-box,var(--edgegrad) border-box;clip-path:var(--cut)}
+.rf-card .rf-tag{display:block;letter-spacing:.14em;color:var(--muted);font-weight:700;font-size:12px}
+.rf-amt{font-size:52px;font-weight:700;line-height:1.1;margin:4px 0 6px;color:var(--gold);text-shadow:0 0 20px rgba(255,200,61,.45)}
+.rf-card p{font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.5}
+.rf-link{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px dashed var(--edge);padding:6px 6px 6px 12px}
 .rf-link span{flex:1;min-width:0;font-size:12.5px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rf-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;height:44px;border:0;border-radius:12px;padding:0 16px;font:inherit;font-size:14px;font-weight:700;line-height:1;cursor:pointer;color:#1f2430;background:linear-gradient(135deg,#ffd36a,#ff8a1f);text-decoration:none;white-space:nowrap}
-.rf-link .rf-btn{height:38px;border-radius:9px;padding:0 16px;font-size:13px}
+.rf-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;height:44px;border:0;padding:0 16px;font:700 14px var(--font-head);letter-spacing:.06em;line-height:1;cursor:pointer;color:#1a0a00;background:var(--grad);text-decoration:none;white-space:nowrap;clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+.rf-link .rf-btn{height:38px;font-size:13px}
 .rf-row{display:flex;align-items:stretch;gap:8px;margin-top:10px}
 .rf-row .rf-btn{flex:1}
-.rf-row .rf-btn.alt{background:rgba(255,255,255,.14);color:#fff}
-.rf-stats{display:flex;gap:8px;margin-top:12px}
-.rf-stats div{flex:1;background:rgba(255,255,255,.1);border-radius:12px;padding:8px 4px}
-.rf-stats b{display:block;font-size:16px}
-.rf-stats small{font-size:11px;opacity:.75}
-.rf-code{margin-top:10px;font-size:12px;opacity:.8}
+.rf-row .rf-btn.alt{background:#1d2335;color:var(--ink)}
+.rf-stats{display:flex;gap:6px;margin-top:12px}
+.rf-stats div{flex:1;background:var(--panel2);border-bottom:2px solid var(--edge);padding:8px 4px}
+.rf-stats div:last-child{border-color:var(--gold)}
+.rf-stats b{display:block;font:700 16px var(--font-head)}
+.rf-stats small{font-size:11px;color:var(--muted)}
+.rf-code{margin-top:10px;font-size:12px;color:var(--muted)}
+.rf-code b{color:var(--ink)}
 `;
   function injectEarnCss() {
     if (document.getElementById('earn-css')) return;
@@ -892,7 +924,7 @@
           <div><b>${esc(e.referral.rewarded)}</b><small>Rewarded</small></div>
           <div><b>${money(e.referral.earned)}</b><small>Earned</small></div>
         </div>
-        <div class="rf-code">My Code: <b>${esc(e.referral_code)}</b></div>
+        <div class="rf-code">My code: <b>${esc(e.referral_code)}</b></div>
       </div>
       ${navHtml('earn')}
     </div>`;
