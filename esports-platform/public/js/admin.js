@@ -64,6 +64,7 @@
       '<button class="btn ghost" id="a-logout">Logout</button></div>' +
       '<div class="a-card" id="games-form"></div>' +
       '<div class="a-card"><h2>Games</h2><div id="games-list"><div class="empty">Loading...</div></div></div>' +
+      '<div class="a-card"><h2>Match categories</h2><div id="c-box"></div></div>' +
       '<div class="a-card" id="t-form"></div>' +
       '<div class="a-card"><h2>Tournaments</h2><div id="t-list"><div class="empty">Loading...</div></div></div></div>';
     document.getElementById('a-logout').addEventListener('click', async () => {
@@ -169,6 +170,10 @@
   let tournaments = [];
   let tGames = [];
   let tEditing = null;
+  let tCats = [];
+  const MODE_LABEL = { solo: 'Solo', duo: 'Duo', squad: 'Squad' };
+  const BR_DEFAULT = { solo: 48, duo: 32, squad: 12 };
+  const catById = (id) => tCats.find((c) => c.id === id) || null;
 
   function toLocalInput(iso) {
     if (!iso) return '';
@@ -181,18 +186,24 @@
   }
 
   function renderTForm() {
-    const t = tEditing || { game_id: '', title: '', description: '', rules: '', banner_url: '', entry_fee: 0, prize_pool: 0, max_players: 50, starts_at: '', status: 'upcoming' };
+    const t = tEditing || { game_id: '', title: '', description: '', rules: '', banner_url: '', entry_fee: 0, prize_pool: 0, category_id: '', mode: 'solo', team_count: 2, starts_at: '', status: 'upcoming' };
     const box = document.getElementById('t-form');
     const gameOpts = '<option value="">-- Game chuno --</option>' + tGames.map((g) =>
       '<option value="' + esc(g.id) + '"' + (g.id === t.game_id ? ' selected' : '') + '>' + esc(g.name) + (g.is_active ? '' : ' (hidden)') + '</option>').join('');
+    const catOpts = '<option value="">-- Category chuno --</option>' + tCats.filter((c) => c.is_active || c.id === t.category_id).map((c) =>
+      '<option value="' + esc(c.id) + '"' + (c.id === t.category_id ? ' selected' : '') + '>' + esc(c.name) + ' (' + (c.layout === 'br' ? 'BR slots' : 'Red vs Blue') + ')</option>').join('');
+    const modeOpts = Object.keys(MODE_LABEL).map((m) => '<option value="' + m + '"' + (m === t.mode ? ' selected' : '') + '>' + MODE_LABEL[m] + '</option>').join('');
     const statusOpts = T_STATUS.map((s) => '<option value="' + s[0] + '"' + (s[0] === t.status ? ' selected' : '') + '>' + esc(s[1]) + '</option>').join('');
     box.innerHTML =
       '<h2>' + (tEditing ? 'Edit tournament' : 'Add tournament') + '</h2>' +
       '<label for="t-game">Game</label><select id="t-game">' + gameOpts + '</select>' +
+      '<div class="grid2"><div><label for="t-cat">Category</label><select id="t-cat">' + catOpts + '</select></div>' +
+      '<div><label for="t-mode">Mode</label><select id="t-mode">' + modeOpts + '</select></div></div>' +
+      '<label for="t-tc">Teams / slots</label><input id="t-tc" type="number" min="2" max="64" value="' + esc(t.team_count) + '">' +
+      '<div class="sub" id="t-tcnote" style="font-size:13px;opacity:.75;margin:4px 0 8px"></div>' +
       '<label for="t-title">Title</label><input id="t-title" maxlength="100" value="' + esc(t.title) + '">' +
       '<div class="grid2"><div><label for="t-fee">Entry fee (Rs)</label><input id="t-fee" type="number" min="0" step="1" value="' + esc(t.entry_fee) + '"></div>' +
       '<div><label for="t-prize">Prize pool (Rs)</label><input id="t-prize" type="number" min="0" step="1" value="' + esc(t.prize_pool) + '"></div>' +
-      '<div><label for="t-max">Max players</label><input id="t-max" type="number" min="2" max="1000" value="' + esc(t.max_players) + '"></div>' +
       '<div><label for="t-start">Start date & time</label><input id="t-start" type="datetime-local" value="' + esc(toLocalInput(t.starts_at)) + '"></div></div>' +
       '<label for="t-status">Status</label><select id="t-status">' + statusOpts + '</select>' +
       '<label for="t-banner">Banner URL (https://)</label><input id="t-banner" maxlength="500" value="' + esc(t.banner_url) + '">' +
@@ -202,6 +213,27 @@
       '<button class="btn" id="t-save">' + (tEditing ? 'Save changes' : 'Add tournament') + '</button>' +
       (tEditing ? '<button class="btn ghost" id="t-cancel" style="margin-top:10px;width:100%">Cancel</button>' : '');
     document.getElementById('t-save').addEventListener('click', saveTournament);
+    const selCat = document.getElementById('t-cat');
+    const selMode = document.getElementById('t-mode');
+    const tcInp = document.getElementById('t-tc');
+    const tcNote = document.getElementById('t-tcnote');
+    function syncTeams(fillDefault) {
+      const c = catById(selCat.value);
+      const size = { solo: 1, duo: 2, squad: 4 }[selMode.value];
+      if (c && c.layout === 'red_blue') {
+        tcInp.value = 2; tcInp.disabled = true;
+        tcNote.textContent = 'Red vs Blue: ' + size + ' vs ' + size + ' = ' + (size * 2) + ' players total';
+      } else {
+        tcInp.disabled = false;
+        if (fillDefault) tcInp.value = BR_DEFAULT[selMode.value];
+        const n = Number(tcInp.value) || 0;
+        tcNote.textContent = c ? n + ' ' + (size === 1 ? 'players' : 'teams') + ' x ' + size + ' = ' + (n * size) + ' players total' : 'Pehle category chuno';
+      }
+    }
+    selCat.addEventListener('change', () => syncTeams(true));
+    selMode.addEventListener('change', () => syncTeams(true));
+    tcInp.addEventListener('input', () => syncTeams(false));
+    syncTeams(false);
     const c = document.getElementById('t-cancel');
     if (c) c.addEventListener('click', () => { tEditing = null; renderTForm(); });
   }
@@ -217,7 +249,9 @@
       title: document.getElementById('t-title').value.trim(),
       entry_fee: Number(document.getElementById('t-fee').value) || 0,
       prize_pool: Number(document.getElementById('t-prize').value) || 0,
-      max_players: parseInt(document.getElementById('t-max').value, 10) || 0,
+      category_id: document.getElementById('t-cat').value,
+      mode: document.getElementById('t-mode').value,
+      team_count: parseInt(document.getElementById('t-tc').value, 10) || 2,
       starts_at: new Date(startVal).toISOString(),
       status: document.getElementById('t-status').value,
       banner_url: document.getElementById('t-banner').value.trim(),
@@ -242,7 +276,7 @@
     const box = document.getElementById('t-list');
     if (!tournaments.length) { box.innerHTML = '<div class="empty">Abhi koi tournament nahi. Upar form se pehla tournament add karo.</div>'; return; }
     box.innerHTML = tournaments.map((t) =>
-      '<div class="row"><div class="info"><b>' + esc(t.title) + '</b><span>' + esc(t.game_name) +
+      '<div class="row"><div class="info"><b>' + esc(t.title) + '</b><span>' + esc(t.game_name) + ' | ' + esc((catById(t.category_id) || {}).name || 'No category') + ' ' + esc(MODE_LABEL[t.mode] || '') +
       ' | Entry Rs' + esc(t.entry_fee) + ' | Prize Rs' + esc(t.prize_pool) +
       ' | ' + esc(t.joined_count) + '/' + esc(t.max_players) + ' joined | ' + esc(fmtDate(t.starts_at)) + '</span></div>' +
       '<span class="pill' + ((t.status === 'cancelled' || t.status === 'completed') ? ' off' : '') + '">' + esc(t.status) + '</span>' +
@@ -275,8 +309,47 @@
   async function initTournaments() {
     tEditing = null;
     try { tGames = (await call('GET', '/api/admin/games')).games || []; } catch (e) { tGames = []; }
+    await loadCats();
     renderTForm();
     loadTournaments();
+  }
+
+  // ---------- Match categories ----------
+  async function loadCats() {
+    try { tCats = (await call('GET', '/api/admin/tournaments/categories')).categories || []; } catch (e) { tCats = []; }
+    renderCats();
+  }
+
+  function renderCats() {
+    const box = document.getElementById('c-box');
+    if (!box) return;
+    box.innerHTML =
+      tCats.map((c) =>
+        '<div class="row"><div class="info"><b>' + esc(c.name) + '</b><span>' + (c.layout === 'br' ? 'BR slots (alag teams/players)' : 'Red vs Blue') + '</span></div>' +
+        '<span class="pill' + (c.is_active ? '' : ' off') + '">' + (c.is_active ? 'Active' : 'Hidden') + '</span>' +
+        '<button class="btn ghost small" data-ctoggle="' + esc(c.id) + '">' + (c.is_active ? 'Hide' : 'Show') + '</button></div>').join('') +
+      '<div class="grid2" style="margin-top:14px"><div><label for="c-name">Nayi category</label><input id="c-name" maxlength="30" placeholder="Jaise: Clash Squad"></div>' +
+      '<div><label for="c-layout">Layout</label><select id="c-layout"><option value="red_blue">Red vs Blue</option><option value="br">BR (slots)</option></select></div></div>' +
+      '<div class="err" id="c-err"></div><button class="btn" id="c-add">Add category</button>';
+    box.querySelectorAll('[data-ctoggle]').forEach((b) => b.addEventListener('click', async () => {
+      const c = catById(b.getAttribute('data-ctoggle'));
+      if (!c) return;
+      b.disabled = true;
+      try { await call('PATCH', '/api/admin/tournaments/categories/' + c.id, { is_active: !c.is_active }); await loadCats(); renderTForm(); }
+      catch (e) { toast(e.message); b.disabled = false; }
+    }));
+    document.getElementById('c-add').addEventListener('click', async () => {
+      const err = document.getElementById('c-err');
+      const btn = document.getElementById('c-add');
+      err.textContent = '';
+      btn.disabled = true;
+      try {
+        await call('POST', '/api/admin/tournaments/categories', { name: document.getElementById('c-name').value.trim(), layout: document.getElementById('c-layout').value });
+        toast('Category added');
+        await loadCats();
+        renderTForm();
+      } catch (e) { err.textContent = e.message; btn.disabled = false; }
+    });
   }
 
   call('GET', '/api/admin/me').then((out) => showDash(out.admin)).catch(showLogin);

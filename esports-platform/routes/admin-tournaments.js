@@ -15,7 +15,9 @@ const body = z.object({
   banner_url: bannerUrl.optional(),
   entry_fee: money,
   prize_pool: money,
-  max_players: z.number().int().min(2).max(1000),
+  category_id: z.string().uuid('Category chuno'),
+  mode: z.enum(['solo', 'duo', 'squad']),
+  team_count: z.number().int().min(2).max(64).optional(),
   starts_at: z.string().datetime({ message: 'Start date/time sahi nahi hai' }),
   status: z.enum(STATUSES),
 });
@@ -26,6 +28,19 @@ const log = (req, action, details) =>
 // room_id / room_password abhi list me nahi bhejte (wo agle step me alag publish flow se aayenge)
 const strip = (t) => { const { room_id, room_password, ...rest } = t; return rest; };
 const r2 = (n) => Math.round(n * 100) / 100;
+
+// mode se team size fix: solo 1, duo 2, squad 4. CS/Lone Wolf jaisi red_blue category me teams hamesha 2 (Red, Blue).
+// BR jaisi category me team_count admin deta hai (Solo 48, Duo 32, Squad 12 suggested).
+const SIZE = { solo: 1, duo: 2, squad: 4 };
+async function shape(category_id, mode, team_count) {
+  const { data: c } = await db.from('match_categories').select('id, layout').eq('id', category_id).maybeSingle();
+  if (!c) return { error: 'Category nahi mili' };
+  const team_size = SIZE[mode];
+  const tc = c.layout === 'red_blue' ? 2 : team_count;
+  if (!team_size) return { error: 'Mode sahi nahi hai' };
+  if (!tc || tc < 2 || tc > 64) return { error: 'Teams/slots 2 se 64 ke beech hone chahiye' };
+  return { category_id, mode, team_size, team_count: tc, max_players: tc * team_size };
+}
 
 router.use(requireAdmin, requireRole('super_admin', 'admin'));
 
@@ -49,6 +64,8 @@ router.post('/', async (req, res) => {
   const d = p.data;
   const { data: g } = await db.from('games').select('id').eq('id', d.game_id).maybeSingle();
   if (!g) return res.status(400).json({ error: 'Game nahi mila' });
+  const sh = await shape(d.category_id, d.mode, d.team_count);
+  if (sh.error) return res.status(400).json({ error: sh.error });
   const row = {
     game_id: d.game_id,
     title: d.title,
@@ -57,7 +74,11 @@ router.post('/', async (req, res) => {
     banner_url: d.banner_url || null,
     entry_fee: r2(d.entry_fee),
     prize_pool: r2(d.prize_pool),
-    max_players: d.max_players,
+    category_id: sh.category_id,
+    mode: sh.mode,
+    team_size: sh.team_size,
+    team_count: sh.team_count,
+    max_players: sh.max_players,
     starts_at: d.starts_at,
     status: d.status,
     created_by: req.admin.id,
@@ -88,20 +109,26 @@ router.patch('/:id', async (req, res) => {
     if (d.status === 'cancelled')
       return res.status(400).json({ error: 'Players join kar chuke hain. Cancel + refund feature abhi baaki hai' });
   }
-  if (d.max_players !== undefined && d.max_players < joined)
-    return res.status(400).json({ error: 'Max players joined players (' + joined + ') se kam nahi ho sakte' });
+  let sh = null;
+  if (d.category_id !== undefined || d.mode !== undefined || d.team_count !== undefined) {
+    sh = await shape(d.category_id || cur.category_id, d.mode || cur.mode, d.team_count !== undefined ? d.team_count : cur.team_count);
+    if (sh.error) return res.status(400).json({ error: sh.error });
+    if (joined > 0 && (sh.category_id !== cur.category_id || sh.mode !== cur.mode || sh.team_count !== cur.team_count))
+      return res.status(400).json({ error: 'Players join kar chuke hain, category/mode/teams nahi badal sakte' });
+  }
   if (d.game_id !== undefined) {
     const { data: g } = await db.from('games').select('id').eq('id', d.game_id).maybeSingle();
     if (!g) return res.status(400).json({ error: 'Game nahi mila' });
   }
 
   const upd = {};
-  ['game_id', 'title', 'starts_at', 'status', 'max_players'].forEach((k) => { if (d[k] !== undefined) upd[k] = d[k]; });
+  ['game_id', 'title', 'starts_at', 'status'].forEach((k) => { if (d[k] !== undefined) upd[k] = d[k]; });
   if (d.description !== undefined) upd.description = d.description || null;
   if (d.rules !== undefined) upd.rules = d.rules || null;
   if (d.banner_url !== undefined) upd.banner_url = d.banner_url || null;
   if (d.entry_fee !== undefined) upd.entry_fee = r2(d.entry_fee);
   if (d.prize_pool !== undefined) upd.prize_pool = r2(d.prize_pool);
+  if (sh) Object.assign(upd, { category_id: sh.category_id, mode: sh.mode, team_size: sh.team_size, team_count: sh.team_count, max_players: sh.max_players });
   if (!Object.keys(upd).length) return res.status(400).json({ error: 'Kuch badla nahi' });
 
   const { data, error } = await db.from('tournaments').update(upd).eq('id', cur.id).select().maybeSingle();
@@ -120,6 +147,38 @@ router.delete('/:id', async (req, res) => {
   if (error) return res.status(500).json({ error: 'Could not delete tournament' });
   await log(req, 'tournament_delete', { id: cur.id, title: cur.title });
   res.json({ ok: true });
+});
+
+// ---------- Match categories (BR, CS, Lone Wolf...) ----------
+const catBody = z.object({
+  name: z.string().trim().min(2, 'Name kam se kam 2 letters').max(30),
+  layout: z.enum(['red_blue', 'br']),
+});
+
+router.get('/categories', async (req, res) => {
+  const { data, error } = await db.from('match_categories').select('*').order('sort_order').order('created_at');
+  if (error) return res.status(500).json({ error: 'Could not load categories' });
+  res.json({ categories: data });
+});
+
+router.post('/categories', async (req, res) => {
+  const p = catBody.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: p.error.issues[0].message });
+  const { data, error } = await db.from('match_categories').insert({ name: p.data.name, layout: p.data.layout, sort_order: 100 }).select().single();
+  if (error) return res.status(error.code === '23505' ? 409 : 500).json({ error: error.code === '23505' ? 'Is naam ki category pehle se hai' : 'Could not add category' });
+  await log(req, 'category_create', { id: data.id, name: data.name });
+  res.json({ category: data });
+});
+
+router.patch('/categories/:id', async (req, res) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({ error: 'Invalid id' });
+  const p = z.object({ is_active: z.boolean() }).safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: 'Invalid input' });
+  const { data, error } = await db.from('match_categories').update({ is_active: p.data.is_active }).eq('id', req.params.id).select().maybeSingle();
+  if (error) return res.status(500).json({ error: 'Could not update category' });
+  if (!data) return res.status(404).json({ error: 'Category not found' });
+  await log(req, 'category_update', { id: data.id, is_active: data.is_active });
+  res.json({ category: data });
 });
 
 module.exports = router;
