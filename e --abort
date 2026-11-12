@@ -1,0 +1,52 @@
+[33mcommit 047d5e15e833471ba62b2d69eea024f75ac56b47[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Yusuf Shaikh | Developer <bhaiyusuf009@gmail.com>
+Date:   Thu Nov 12 21:01:40 2026 +0530
+
+    Update app.js
+
+[1mdiff --git a/esports-platform/public/js/app.js b/esports-platform/public/js/app.js[m
+[1mindex 08734e3..26dbf62 100644[m
+[1m--- a/esports-platform/public/js/app.js[m
+[1m+++ b/esports-platform/public/js/app.js[m
+[36m@@ -306,6 +306,7 @@[m
+       <div class="field"><label for="af">Amount (${R})</label>[m
+         <input id="af" type="number" inputmode="numeric" min="${AF_MIN}" max="${AF_MAX}" placeholder="Amount likho"></div>[m
+       <div class="amts">${[50, 100, 200, 500].map((a) => `<button type="button" class="amt" data-a="${a}">${R}${a}</button>`).join('')}</div>[m
+[32m+[m[32m      <div class="field"><label for="afp">Mobile number</label><input id="afp" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10 digit number"></div>[m
+       <div class="err" id="afe"></div>[m
+       <button class="btn" type="button" id="afgo">Proceed to Pay</button>[m
+       <p class="note">Min ${R}${AF_MIN}, max ${R}${AF_MAX}. Deposit balance se match join hota hai; withdraw sirf Winnings se hota hai.</p>`);[m
+[36m@@ -314,6 +315,7 @@[m
+     s.el.querySelector('#afgo').addEventListener('click', () => {[m
+       const a = Number(inp.value);[m
+       if (!Number.isFinite(a) || a < AF_MIN || a > AF_MAX) { err.textContent = `Amount ${R}${AF_MIN} se ${R}${AF_MAX} ke beech do`; return; }[m
+[32m+[m[32m      if (!/^[6-9]\d{9}$/.test(s.el.querySelector('#afp').value.trim())) { err.textContent = 'Sahi 10 digit mobile number likho'; return; }[m
+       s.close();[m
+       toast('Payment gateway Phase 3 me judega (abhi sirf design)');[m
+     });[m
+[36m@@ -325,10 +327,11 @@[m
+       <div class="field"><label for="wa">Amount (${R})</label>[m
+         <input id="wa" type="number" inputmode="numeric" min="${WD_MIN}" placeholder="Min ${R}${WD_MIN}"></div>[m
+       <div class="fee" id="fee">Fee ${WD_FEE_PCT}%: ${R}0 &middot; Aapko milega: ${R}0</div>[m
+[32m+[m[32m      <div class="field"><label for="wn">Account holder name</label><input id="wn" type="text" autocomplete="off"></div>[m
+[32m+[m[32m      <div class="field"><label for="wp">Mobile number</label><input id="wp" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10 digit number"></div>[m
+       <div class="seg"><button type="button" class="on" data-m="upi">UPI</button><button type="button" data-m="bank">Bank</button></div>[m
+       <div id="m-upi"><div class="field"><label for="upi">UPI ID</label><input id="upi" type="text" autocomplete="off" placeholder="name@bank"></div></div>[m
+       <div id="m-bank" hidden>[m
+[31m-        <div class="field"><label for="bn">Account holder name</label><input id="bn" type="text" autocomplete="off"></div>[m
+         <div class="field"><label for="ba">Account number</label><input id="ba" type="text" inputmode="numeric" autocomplete="off"></div>[m
+         <div class="field"><label for="bi">IFSC</label><input id="bi" type="text" autocomplete="off" maxlength="11"></div>[m
+       </div>[m
+[36m@@ -355,10 +358,11 @@[m
+       const e = $('#wde');[m
+       if (!Number.isFinite(a) || a < WD_MIN) { e.textContent = `Minimum withdrawal ${R}${WD_MIN} hai`; return; }[m
+       if (a > Number(winnings)) { e.textContent = 'Winnings balance se zyada withdraw nahi ho sakta'; return; }[m
+[32m+[m[32m      if ($('#wn').value.trim().length < 3) { e.textContent = 'Account holder name likho'; return; }[m
+[32m+[m[32m      if (!/^[6-9]\d{9}$/.test($('#wp').value.trim())) { e.textContent = 'Sahi 10 digit mobile number likho'; return; }[m
+       if (method === 'upi') {[m
+         if (!/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test($('#upi').value.trim())) { e.textContent = 'Sahi UPI ID likho (name@bank)'; return; }[m
+       } else {[m
+[31m-        if ($('#bn').value.trim().length < 3) { e.textContent = 'Account holder name likho'; return; }[m
+         if (!/^\d{9,18}$/.test($('#ba').value.trim())) { e.textContent = 'Account number 9-18 digits ka hona chahiye'; return; }[m
+         if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test($('#bi').value.trim())) { e.textContent = 'Sahi IFSC likho'; return; }[m
+       }[m

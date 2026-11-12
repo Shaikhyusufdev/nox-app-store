@@ -49,8 +49,22 @@
     // referral link (?ref=CODE) se aaya aur login nahi hai -> seedha register screen
     const ref = new URLSearchParams(location.search).get('ref');
     if (!state.user && ref && !location.hash) location.hash = '/register';
+    if (state.user) await handlePaymentReturn();
     window.addEventListener('hashchange', render);
     render();
+  }
+
+  // Cashfree se wapas aane par (?order_id=...) payment verify karo
+  async function handlePaymentReturn() {
+    const orderId = new URLSearchParams(location.search).get('order_id');
+    if (!orderId) return;
+    history.replaceState(null, '', location.pathname + (location.hash || '#/wallet'));
+    try {
+      const r = await api.get('/payments/verify?order_id=' + encodeURIComponent(orderId));
+      if (r.status === 'success') toast('Deposit successful! Balance update ho gaya');
+      else if (r.status === 'failed') toast('Payment fail ho gayi. Dobara try karo');
+      else toast('Payment process ho rahi hai, thodi der me wallet check karo');
+    } catch { toast('Payment status check nahi ho paya, wallet dekho'); }
   }
 
   const PAGES = {
@@ -301,6 +315,18 @@
     return { el: wrap, close };
   }
 
+  // Cashfree SDK sirf Add Funds dabane par load hota hai
+  function loadCashfree() {
+    if (window.Cashfree) return Promise.resolve();
+    return new Promise((ok, fail) => {
+      const t = document.createElement('script');
+      t.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+      t.onload = ok;
+      t.onerror = () => fail(new Error('Payment page load nahi hua, internet check karo'));
+      document.head.appendChild(t);
+    });
+  }
+
   function addFundsSheet() {
     const s = openSheet('Add Funds', `
       <div class="field"><label for="af">Amount (${R})</label>
@@ -312,12 +338,22 @@
       <p class="note">Min ${R}${AF_MIN}, max ${R}${AF_MAX}. Deposit balance se match join hota hai; withdraw sirf Winnings se hota hai.</p>`);
     const inp = s.el.querySelector('#af'), err = s.el.querySelector('#afe');
     s.el.querySelectorAll('.amt').forEach((b) => b.addEventListener('click', () => { inp.value = b.dataset.a; err.textContent = ''; }));
-    s.el.querySelector('#afgo').addEventListener('click', () => {
+    const goBtn = s.el.querySelector('#afgo');
+    goBtn.addEventListener('click', async () => {
       const a = Number(inp.value);
       if (!Number.isFinite(a) || a < AF_MIN || a > AF_MAX) { err.textContent = `Amount ${R}${AF_MIN} se ${R}${AF_MAX} ke beech do`; return; }
-      if (!/^[6-9]\d{9}$/.test(s.el.querySelector('#afp').value.trim())) { err.textContent = 'Sahi 10 digit mobile number likho'; return; }
-      s.close();
-      toast('Payment gateway Phase 3 me judega (abhi sirf design)');
+      const phone = s.el.querySelector('#afp').value.trim();
+      if (!/^[6-9]\d{9}$/.test(phone)) { err.textContent = 'Sahi 10 digit mobile number likho'; return; }
+      err.textContent = '';
+      goBtn.disabled = true; goBtn.textContent = 'Please wait...';
+      try {
+        const o = await api.post('/payments/create', { amount: a, phone });
+        await loadCashfree();
+        window.Cashfree({ mode: o.mode }).checkout({ paymentSessionId: o.paymentSessionId, redirectTarget: '_self' });
+      } catch (ex) {
+        err.textContent = ex.message;
+        goBtn.disabled = false; goBtn.textContent = 'Proceed to Pay';
+      }
     });
   }
 
@@ -327,11 +363,10 @@
       <div class="field"><label for="wa">Amount (${R})</label>
         <input id="wa" type="number" inputmode="numeric" min="${WD_MIN}" placeholder="Min ${R}${WD_MIN}"></div>
       <div class="fee" id="fee">Fee ${WD_FEE_PCT}%: ${R}0 &middot; Aapko milega: ${R}0</div>
-      <div class="field"><label for="wn">Account holder name</label><input id="wn" type="text" autocomplete="off"></div>
-      <div class="field"><label for="wp">Mobile number</label><input id="wp" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10 digit number"></div>
       <div class="seg"><button type="button" class="on" data-m="upi">UPI</button><button type="button" data-m="bank">Bank</button></div>
       <div id="m-upi"><div class="field"><label for="upi">UPI ID</label><input id="upi" type="text" autocomplete="off" placeholder="name@bank"></div></div>
       <div id="m-bank" hidden>
+        <div class="field"><label for="bn">Account holder name</label><input id="bn" type="text" autocomplete="off"></div>
         <div class="field"><label for="ba">Account number</label><input id="ba" type="text" inputmode="numeric" autocomplete="off"></div>
         <div class="field"><label for="bi">IFSC</label><input id="bi" type="text" autocomplete="off" maxlength="11"></div>
       </div>
@@ -358,11 +393,10 @@
       const e = $('#wde');
       if (!Number.isFinite(a) || a < WD_MIN) { e.textContent = `Minimum withdrawal ${R}${WD_MIN} hai`; return; }
       if (a > Number(winnings)) { e.textContent = 'Winnings balance se zyada withdraw nahi ho sakta'; return; }
-      if ($('#wn').value.trim().length < 3) { e.textContent = 'Account holder name likho'; return; }
-      if (!/^[6-9]\d{9}$/.test($('#wp').value.trim())) { e.textContent = 'Sahi 10 digit mobile number likho'; return; }
       if (method === 'upi') {
         if (!/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test($('#upi').value.trim())) { e.textContent = 'Sahi UPI ID likho (name@bank)'; return; }
       } else {
+        if ($('#bn').value.trim().length < 3) { e.textContent = 'Account holder name likho'; return; }
         if (!/^\d{9,18}$/.test($('#ba').value.trim())) { e.textContent = 'Account number 9-18 digits ka hona chahiye'; return; }
         if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test($('#bi').value.trim())) { e.textContent = 'Sahi IFSC likho'; return; }
       }

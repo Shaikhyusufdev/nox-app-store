@@ -11,11 +11,21 @@ for (const k of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'JWT_SECRET', 'ADM
 const app = express();
 app.set('trust proxy', 1); // Vercel proxy ke peeche
 // CSP: admin jo image URL dega (game/tournament banner) wo https se load ho sake, isliye img-src me https: add kiya
-const cspDirectives = { ...helmet.contentSecurityPolicy.getDefaultDirectives(), 'img-src': ["'self'", 'data:', 'https:'] };
+const CF = 'https://*.cashfree.com'; // Cashfree checkout SDK + payment pages
+const dd = helmet.contentSecurityPolicy.getDefaultDirectives();
+const cspDirectives = {
+  ...dd,
+  'img-src': ["'self'", 'data:', 'https:'],
+  'script-src': [...dd['script-src'], CF],
+  'connect-src': [...(dd['connect-src'] || ["'self'"]), CF],
+  'frame-src': [...(dd['frame-src'] || ["'self'"]), CF],
+};
 if (process.env.NODE_ENV !== 'production') delete cspDirectives['upgrade-insecure-requests']; // local http pe CSS/JS load hone ke liye
 app.use(helmet({ contentSecurityPolicy: { directives: cspDirectives } }));
 
-// NOTE Phase 3: Cashfree webhook ko raw body chahiye (signature verify) -- usse json parser se PEHLE mount karenge
+// Cashfree webhook ko raw body chahiye (signature verify) -- isliye json parser se PEHLE mount hai
+const payments = require('./routes/payments');
+app.post('/api/payments/webhook', express.raw({ type: '*/*', limit: '100kb' }), payments.webhook);
 app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 
@@ -30,6 +40,7 @@ app.use((req, res, next) => {
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin-auth'));
+app.use('/api/payments', payments);
 app.use('/api', require('./routes/tournaments'));
 
 app.use(express.static(path.join(__dirname, 'public')));
