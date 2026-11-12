@@ -246,8 +246,20 @@
       ' | Entry Rs' + esc(t.entry_fee) + ' | Prize Rs' + esc(t.prize_pool) +
       ' | ' + esc(t.joined_count) + '/' + esc(t.max_players) + ' joined | ' + esc(fmtDate(t.starts_at)) + '</span></div>' +
       '<span class="pill' + ((t.status === 'cancelled' || t.status === 'completed') ? ' off' : '') + '">' + esc(t.status) + '</span>' +
-      '<button class="btn ghost small" data-tedit="' + esc(t.id) + '">Edit</button></div>'
+      '<button class="btn ghost small" data-tedit="' + esc(t.id) + '">Edit</button>' +
+      '<button class="btn ghost small" data-tdel="' + esc(t.id) + '">Delete</button></div>'
     ).join('');
+    box.querySelectorAll('[data-tdel]').forEach((b) => b.addEventListener('click', async () => {
+      const t = tournaments.find((x) => x.id === b.getAttribute('data-tdel'));
+      if (!t || !window.confirm('Delete "' + t.title + '"? Ye wapas nahi aayega.')) return;
+      b.disabled = true;
+      try {
+        await call('DELETE', '/api/admin/tournaments/' + t.id);
+        if (tEditing && tEditing.id === t.id) { tEditing = null; renderTForm(); }
+        toast('Deleted');
+        await loadTournaments();
+      } catch (e) { toast(e.message); b.disabled = false; }
+    }));
     box.querySelectorAll('[data-tedit]').forEach((b) => b.addEventListener('click', () => {
       tEditing = tournaments.find((x) => x.id === b.getAttribute('data-tedit')) || null;
       renderTForm();

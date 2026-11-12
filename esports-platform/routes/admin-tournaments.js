@@ -110,4 +110,16 @@ router.patch('/:id', async (req, res) => {
   res.json({ tournament: strip(data) });
 });
 
+router.delete('/:id', async (req, res) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({ error: 'Invalid id' });
+  const { data: cur } = await db.from('tournaments').select('id, title').eq('id', req.params.id).maybeSingle();
+  if (!cur) return res.status(404).json({ error: 'Tournament not found' });
+  const { count } = await db.from('tournament_participants').select('id', { count: 'exact', head: true }).eq('tournament_id', cur.id);
+  if (count > 0) return res.status(400).json({ error: 'Players join kar chuke hain, delete nahi ho sakta (refund feature baaki hai)' });
+  const { error } = await db.from('tournaments').delete().eq('id', cur.id);
+  if (error) return res.status(500).json({ error: 'Could not delete tournament' });
+  await log(req, 'tournament_delete', { id: cur.id, title: cur.title });
+  res.json({ ok: true });
+});
+
 module.exports = router;
