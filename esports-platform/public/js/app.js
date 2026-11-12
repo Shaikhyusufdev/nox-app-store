@@ -58,7 +58,7 @@
     '/profile': renderProfile,
     '/rank': () => renderSoon('Rank', 'Leaderboard (Hall of Fame)', 'trophy'),
     '/earn': () => renderSoon('Earn', 'Spin to Win aur Refer & Earn', 'gift'),
-    '/wallet': () => renderSoon('Wallet', 'Balance, deposit, withdraw aur history', 'wallet'),
+    '/wallet': renderWallet,
     '/support': () => renderSoon('Support', 'Help aur support', 'headset'),
     '/contests': () => renderSoon('My Contests', 'Aapke joined matches yaha dikhenge', 'trophy'),
   };
@@ -270,6 +270,171 @@
       state.user = null;
       go('/login');
     });
+    M.enter();
+  }
+
+  /* ---------- Wallet (Step 2) ---------- */
+  const R = '\u20B9';
+  const TX_LABEL = { deposit: 'Deposit', entry_fee: 'Entry fee', prize: 'Prize', withdrawal: 'Withdrawal', withdrawal_refund: 'Withdrawal refund', referral_bonus: 'Referral bonus', admin_adjust: 'Admin adjustment', refund: 'Refund', gift_code: 'Gift code', promo: 'Promo' };
+  const BAL_LABEL = { deposit: 'Deposit', winnings: 'Winnings', bonus: 'Bonus' };
+  const WD_MIN = 50, WD_FEE_PCT = 5, AF_MIN = 10, AF_MAX = 10000; // reference design; baad me admin settings se aayega
+  const fmtDate = (s) => { try { return new Date(s).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch { return ''; } };
+
+  // neeche se aane wala popup (Add Funds / Withdraw)
+  function openSheet(title, html) {
+    const wrap = document.createElement('div');
+    wrap.className = 'sheet-wrap';
+    wrap.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+      <div class="sheet-head"><b>${esc(title)}</b><button type="button" class="sheet-x" aria-label="Close">&times;</button></div>
+      ${html}</div>`;
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    function close() {
+      document.removeEventListener('keydown', onKey);
+      wrap.classList.remove('open');
+      setTimeout(() => wrap.remove(), 220);
+    }
+    document.addEventListener('keydown', onKey);
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
+    wrap.querySelector('.sheet-x').addEventListener('click', close);
+    document.body.appendChild(wrap);
+    requestAnimationFrame(() => wrap.classList.add('open'));
+    return { el: wrap, close };
+  }
+
+  function addFundsSheet() {
+    const s = openSheet('Add Funds', `
+      <div class="field"><label for="af">Amount (${R})</label>
+        <input id="af" type="number" inputmode="numeric" min="${AF_MIN}" max="${AF_MAX}" placeholder="Amount likho"></div>
+      <div class="amts">${[50, 100, 200, 500].map((a) => `<button type="button" class="amt" data-a="${a}">${R}${a}</button>`).join('')}</div>
+      <div class="err" id="afe"></div>
+      <button class="btn" type="button" id="afgo">Proceed to Pay</button>
+      <p class="note">Min ${R}${AF_MIN}, max ${R}${AF_MAX}. Deposit balance se match join hota hai; withdraw sirf Winnings se hota hai.</p>`);
+    const inp = s.el.querySelector('#af'), err = s.el.querySelector('#afe');
+    s.el.querySelectorAll('.amt').forEach((b) => b.addEventListener('click', () => { inp.value = b.dataset.a; err.textContent = ''; }));
+    s.el.querySelector('#afgo').addEventListener('click', () => {
+      const a = Number(inp.value);
+      if (!Number.isFinite(a) || a < AF_MIN || a > AF_MAX) { err.textContent = `Amount ${R}${AF_MIN} se ${R}${AF_MAX} ke beech do`; return; }
+      s.close();
+      toast('Payment gateway Phase 3 me judega (abhi sirf design)');
+    });
+  }
+
+  function withdrawSheet(winnings) {
+    const s = openSheet('Withdraw', `
+      <div class="wd-avail">Withdrawable (Winnings): <b>${money(winnings)}</b></div>
+      <div class="field"><label for="wa">Amount (${R})</label>
+        <input id="wa" type="number" inputmode="numeric" min="${WD_MIN}" placeholder="Min ${R}${WD_MIN}"></div>
+      <div class="fee" id="fee">Fee ${WD_FEE_PCT}%: ${R}0 &middot; Aapko milega: ${R}0</div>
+      <div class="seg"><button type="button" class="on" data-m="upi">UPI</button><button type="button" data-m="bank">Bank</button></div>
+      <div id="m-upi"><div class="field"><label for="upi">UPI ID</label><input id="upi" type="text" autocomplete="off" placeholder="name@bank"></div></div>
+      <div id="m-bank" hidden>
+        <div class="field"><label for="bn">Account holder name</label><input id="bn" type="text" autocomplete="off"></div>
+        <div class="field"><label for="ba">Account number</label><input id="ba" type="text" inputmode="numeric" autocomplete="off"></div>
+        <div class="field"><label for="bi">IFSC</label><input id="bi" type="text" autocomplete="off" maxlength="11"></div>
+      </div>
+      <div class="err" id="wde"></div>
+      <button class="btn" type="button" id="wdgo">Request Withdrawal</button>
+      <p class="note">Min ${R}${WD_MIN} &middot; ${WD_FEE_PCT}% fee. Sirf Winnings balance withdraw hota hai, Bonus nahi.</p>`);
+    const $ = (id) => s.el.querySelector(id);
+    let method = 'upi';
+    const calc = () => {
+      const a = Number($('#wa').value) || 0;
+      const fee = Math.round(a * WD_FEE_PCT) / 100;
+      $('#fee').innerHTML = `Fee ${WD_FEE_PCT}%: ${money(fee)} &middot; Aapko milega: ${money(Math.max(0, a - fee))}`;
+    };
+    $('#wa').addEventListener('input', () => { $('#wde').textContent = ''; calc(); });
+    s.el.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+      method = b.dataset.m;
+      s.el.querySelectorAll('.seg button').forEach((x) => x.classList.toggle('on', x === b));
+      $('#m-upi').hidden = method !== 'upi';
+      $('#m-bank').hidden = method !== 'bank';
+      $('#wde').textContent = '';
+    }));
+    $('#wdgo').addEventListener('click', () => {
+      const a = Number($('#wa').value);
+      const e = $('#wde');
+      if (!Number.isFinite(a) || a < WD_MIN) { e.textContent = `Minimum withdrawal ${R}${WD_MIN} hai`; return; }
+      if (a > Number(winnings)) { e.textContent = 'Winnings balance se zyada withdraw nahi ho sakta'; return; }
+      if (method === 'upi') {
+        if (!/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test($('#upi').value.trim())) { e.textContent = 'Sahi UPI ID likho (name@bank)'; return; }
+      } else {
+        if ($('#bn').value.trim().length < 3) { e.textContent = 'Account holder name likho'; return; }
+        if (!/^\d{9,18}$/.test($('#ba').value.trim())) { e.textContent = 'Account number 9-18 digits ka hona chahiye'; return; }
+        if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test($('#bi').value.trim())) { e.textContent = 'Sahi IFSC likho'; return; }
+      }
+      s.close();
+      toast('Withdrawal Phase 3 me judega (abhi sirf design)');
+    });
+  }
+
+  async function renderWallet() {
+    const rep = (n, cls) => Array.from({ length: n }, () => `<i class="sk ${cls}"></i>`).join('');
+    $app.innerHTML = `<div class="screen"><div class="sk sk-top"></div><div class="sk sk-line"></div>
+      <div class="sk-row sk-three">${rep(3, 'sk-box')}</div>${navHtml('wallet')}</div>`;
+    M.nav();
+    let wallet, txs;
+    try {
+      const r = await api.get('/wallet');
+      wallet = r.wallet || {}; txs = r.transactions || [];
+    } catch (ex) {
+      if (path() !== '/wallet') return;
+      if (ex.status === 401) { state.user = null; return go('/login'); }
+      $app.innerHTML = `<div class="screen">${subHeader('WALLET', 0)}
+        <div class="empty"><b>Wallet load nahi hua</b>${esc(ex.message)}<br><br><button class="btn" id="retry" type="button">Dobara try karo</button></div>
+        ${navHtml('wallet')}</div>`;
+      document.getElementById('retry').addEventListener('click', renderWallet);
+      M.enter();
+      return;
+    }
+    if (path() !== '/wallet') return;
+    const total = Number(wallet.total_balance) || 0;
+    const dep = Number(wallet.deposit_balance) || 0;
+    const win = Number(wallet.winnings_balance) || 0;
+    const bon = Number(wallet.bonus_balance) || 0;
+
+    const txRow = (t) => {
+      const cr = t.direction === 'credit';
+      const meta = [t.note, BAL_LABEL[t.balance_type], fmtDate(t.created_at)].filter(Boolean).map(esc).join(' &middot; ');
+      return `<div class="tx"><div class="tx-i ${cr ? 'cr' : 'dr'}">${cr ? '+' : '-'}</div>
+        <div class="tx-m"><b>${esc(TX_LABEL[t.type] || t.type)}</b><small>${meta}</small></div>
+        <div class="tx-a ${cr ? 'cr' : 'dr'}">${cr ? '+' : '-'}${money(t.amount)}</div></div>`;
+    };
+    const tile = (label, val, note, c) => `<div class="tile" style="--c:${c}"><small>${label}</small><b>${money(val)}</b><em>${note}</em></div>`;
+
+    $app.innerHTML = `<div class="screen">
+      ${subHeader('WALLET', total)}
+      <div class="wtotal">
+        <small>TOTAL BALANCE</small>
+        <div class="amt-big">${money(total)}</div>
+        <div class="wbtns">
+          <button type="button" class="w-btn solid" id="w-dep">Deposit</button>
+          <button type="button" class="w-btn line" id="w-wd">Withdraw</button>
+        </div>
+      </div>
+      <div class="tiles">
+        ${tile('Deposit', dep, 'Match join', '#1f9a8f')}
+        ${tile('Winnings', win, 'Withdrawable', '#2fae7c')}
+        ${tile('Bonus', bon, 'Sirf match join', '#6a5acd')}
+      </div>
+      <div class="sec-title">${ICON.clock}HISTORY<button type="button" class="link" id="viewall" hidden>View All</button></div>
+      <div id="txbox"></div>
+      ${navHtml('wallet')}
+    </div>`;
+
+    const box = document.getElementById('txbox');
+    const va = document.getElementById('viewall');
+    let all = false;
+    const drawTx = () => {
+      if (!txs.length) { box.innerHTML = `<div class="empty"><b>Abhi koi transaction nahi</b>Deposit ya match join karne ke baad yaha dikhega.</div>`; return; }
+      box.innerHTML = `<div class="card tx-list">${(all ? txs : txs.slice(0, 5)).map(txRow).join('')}</div>`;
+    };
+    drawTx();
+    if (txs.length > 5) {
+      va.hidden = false;
+      va.addEventListener('click', () => { all = !all; va.textContent = all ? 'Show Less' : 'View All'; drawTx(); });
+    }
+    document.getElementById('w-dep').addEventListener('click', addFundsSheet);
+    document.getElementById('w-wd').addEventListener('click', () => withdrawSheet(win));
     M.enter();
   }
 

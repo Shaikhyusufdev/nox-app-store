@@ -1,0 +1,51 @@
+/* NOX Esports - Wallet page (Step 2). Naya file, app.css/motion.css ko touch nahi karta */
+.wtotal { background: var(--grad); color: #fff; border-radius: 18px; padding: 20px 18px 18px; margin-bottom: 14px; box-shadow: 0 10px 26px rgba(106, 90, 205, .28); }
+.wtotal small { font-size: 11px; letter-spacing: .8px; font-weight: 700; opacity: .85; }
+.wtotal .amt-big { font-size: 34px; font-weight: 800; margin: 4px 0 16px; font-variant-numeric: tabular-nums; }
+.wbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.w-btn { border: 0; border-radius: 12px; padding: 12px; font-weight: 800; font-size: 14px; cursor: pointer; transition: scale .15s ease; }
+.w-btn:active { scale: .96; }
+.w-btn.solid { background: #fff; color: var(--purple); }
+.w-btn.line { background: transparent; color: #fff; border: 1.5px solid rgba(255, 255, 255, .85); }
+
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+.tile { background: #fff; border-radius: 14px; box-shadow: var(--shadow); padding: 12px 10px; border-top: 3px solid var(--c); min-width: 0; }
+.tile small { display: block; font-size: 11px; color: var(--muted); font-weight: 700; }
+.tile b { display: block; font-size: 15px; margin: 4px 0 2px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+.tile em { font-style: normal; font-size: 10px; color: var(--c); font-weight: 700; }
+
+.sec-title .link { margin-left: auto; background: none; border: 0; color: var(--purple); font-weight: 700; font-size: 12px; cursor: pointer; }
+.tx-list { padding: 4px 14px; }
+.tx { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.tx:last-child { border-bottom: 0; }
+.tx-i { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 18px; flex: none; }
+.tx-i.cr { background: #e6f6ef; color: #2fae7c; }
+.tx-i.dr { background: #fdeceb; color: var(--danger); }
+.tx-m { flex: 1; min-width: 0; line-height: 1.3; }
+.tx-m b { display: block; font-size: 13px; }
+.tx-m small { display: block; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx-a { font-weight: 800; font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tx-a.cr { color: #2fae7c; }
+.tx-a.dr { color: var(--danger); }
+
+/* popup (Add Funds / Withdraw) */
+.sheet-wrap { position: fixed; inset: 0; z-index: 100; background: rgba(15, 20, 40, 0); display: flex; align-items: flex-end; justify-content: center; transition: background .2s ease; }
+.sheet-wrap.open { background: rgba(15, 20, 40, .5); }
+.sheet { width: 100%; max-width: 430px; max-height: 90vh; overflow-y: auto; background: #fff; border-radius: 20px 20px 0 0; padding: 18px 18px calc(22px + env(safe-area-inset-bottom, 0px)); translate: 0 100%; transition: translate .25s cubic-bezier(.2, .7, .2, 1); }
+.sheet-wrap.open .sheet { translate: 0 0; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; font-size: 16px; }
+.sheet-x { background: #f1f2f6; border: 0; width: 30px; height: 30px; border-radius: 50%; font-size: 20px; line-height: 1; cursor: pointer; }
+.sheet .field { margin-bottom: 12px; }
+.sheet .field label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 5px; }
+.sheet .field input { width: 100%; padding: 12px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; }
+.sheet .field input:focus { outline: none; border-color: var(--teal); }
+.amts { display: flex; gap: 8px; margin-bottom: 8px; }
+.amt { flex: 1; padding: 9px 0; border-radius: 10px; border: 1.5px solid var(--line); background: #fff; font-weight: 700; cursor: pointer; }
+.amt:active { border-color: var(--teal); color: var(--teal); }
+.wd-avail { background: #f1f2f6; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px; }
+.fee { font-size: 12px; color: var(--muted); margin: -4px 0 12px 2px; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: #f1f2f6; padding: 4px; border-radius: 12px; margin-bottom: 12px; }
+.seg button { border: 0; background: transparent; padding: 9px; border-radius: 9px; font-weight: 700; cursor: pointer; }
+.seg button.on { background: #fff; box-shadow: var(--shadow); color: var(--purple); }
+.sheet .note { font-size: 11px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+.sheet [hidden] { display: none; }
