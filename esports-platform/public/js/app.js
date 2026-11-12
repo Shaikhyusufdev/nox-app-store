@@ -71,7 +71,7 @@
     '/': renderHome,
     '/profile': renderProfile,
     '/rank': () => renderSoon('Rank', 'Leaderboard (Hall of Fame)', 'trophy'),
-    '/earn': () => renderSoon('Earn', 'Spin to Win aur Refer & Earn', 'gift'),
+    '/earn': renderEarn,
     '/wallet': renderWallet,
     '/support': () => renderSoon('Support', 'Help aur support', 'headset'),
   };
@@ -790,6 +790,149 @@
     }
     document.getElementById('w-dep').addEventListener('click', addFundsSheet);
     document.getElementById('w-wd').addEventListener('click', () => withdrawSheet(win));
+    M.enter();
+  }
+
+  /* ---------- Earn (Refer & Spin) ---------- */
+  const EARN_CSS = `
+.rf-card{background:linear-gradient(135deg,#1f2430,#2d3350);color:#fff;border-radius:20px;padding:18px;margin:12px 0;text-align:center}
+.rf-card .rf-tag{display:block;letter-spacing:1.5px;opacity:.75;font-weight:700;font-size:12px}
+.rf-amt{font-size:48px;font-weight:900;line-height:1.1;margin:4px 0 6px;background:linear-gradient(135deg,#ffd36a,#ff8a1f);-webkit-background-clip:text;background-clip:text;color:transparent}
+.rf-card p{font-size:13px;opacity:.85;margin:0 0 14px;line-height:1.5}
+.rf-link{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px dashed rgba(255,255,255,.35);border-radius:12px;padding:8px 8px 8px 12px}
+.rf-link span{flex:1;font-size:12.5px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rf-btn{border:0;border-radius:10px;padding:9px 14px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;color:#1f2430;background:linear-gradient(135deg,#ffd36a,#ff8a1f);text-decoration:none;display:inline-block}
+.rf-row{display:flex;gap:8px;margin-top:10px}
+.rf-row .rf-btn{flex:1;text-align:center}
+.rf-row .rf-btn.alt{background:rgba(255,255,255,.14);color:#fff}
+.rf-stats{display:flex;gap:8px;margin-top:12px}
+.rf-stats div{flex:1;background:rgba(255,255,255,.1);border-radius:12px;padding:8px 4px}
+.rf-stats b{display:block;font-size:16px}
+.rf-stats small{font-size:11px;opacity:.75}
+.rf-code{margin-top:10px;font-size:12px;opacity:.8}
+.wh-card{background:#fff;border:1px solid #e6e2db;border-radius:20px;padding:18px;text-align:center;margin-bottom:14px;color:#1f2430}
+.wh-wrap{position:relative;width:250px;max-width:100%;margin:10px auto 16px}
+.wh-disc{width:100%;aspect-ratio:1;border-radius:50%;box-shadow:0 6px 20px rgba(0,0,0,.18);transition:transform 4.2s cubic-bezier(.17,.67,.12,1)}
+.wh-disc svg{width:100%;height:100%;display:block}
+.wh-ptr{position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-top:22px solid #ff3d6e;z-index:2;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))}
+.wh-left{font-size:12.5px;color:#6b665e;margin-top:8px}
+.wh-res{min-height:22px;margin-top:10px;font-weight:800;font-size:15px}
+.rw-item{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e6e2db;border-radius:12px;padding:10px 12px;margin-bottom:8px;color:#1f2430}
+.rw-item small{color:#6b665e;font-size:12px}
+`;
+  function injectEarnCss() {
+    if (document.getElementById('earn-css')) return;
+    const st = document.createElement('style');
+    st.id = 'earn-css';
+    st.textContent = EARN_CSS;
+    document.head.appendChild(st);
+  }
+  const discLabel = (d) => (d.type === 'percent' ? Number(d.value) + '% OFF' : money(d.value) + ' OFF');
+
+  function wheelSvg(rewards) {
+    const n = rewards.length, step = 360 / n, R = 96;
+    const cols = ['#1fa99b', '#5b52d6', '#ff8a1f', '#ff3d6e'];
+    const pt = (deg, r) => { const a = deg * Math.PI / 180; return [(100 + r * Math.sin(a)).toFixed(2), (100 - r * Math.cos(a)).toFixed(2)]; };
+    const segs = rewards.map((r, i) => {
+      const a0 = i * step, a1 = (i + 1) * step, mid = a0 + step / 2;
+      const p0 = pt(a0, R), p1 = pt(a1, R);
+      return `<path d="M100 100 L${p0[0]} ${p0[1]} A${R} ${R} 0 0 1 ${p1[0]} ${p1[1]} Z" fill="${cols[i % cols.length]}" stroke="#fff" stroke-width="2"/>` +
+        `<text x="100" y="40" transform="rotate(${mid} 100 100)" text-anchor="middle" fill="#fff" font-size="17" font-weight="800">${esc(String(r.label).replace(' OFF', ''))}</text>`;
+    }).join('');
+    return `<svg viewBox="0 0 200 200" aria-hidden="true">${segs}<circle cx="100" cy="100" r="15" fill="#fff" stroke="#e6e2db" stroke-width="2"/></svg>`;
+  }
+
+  async function renderEarn() {
+    injectEarnCss();
+    const rep = (n, cls) => Array.from({ length: n }, () => `<i class="sk ${cls}"></i>`).join('');
+    $app.innerHTML = `<div class="screen"><div class="sk sk-top"></div><div class="sk-row sk-three">${rep(3, 'sk-box')}</div>${navHtml('earn')}</div>`;
+    M.nav();
+    const [bal, ed] = await Promise.allSettled([getBalance(), api.get('/earn')]);
+    if (path() !== '/earn') return;
+    const balance = bal.status === 'fulfilled' ? bal.value : 0;
+    if (ed.status !== 'fulfilled') {
+      $app.innerHTML = `<div class="screen">${subHeader('EARN', balance)}
+        <div class="empty"><b>Earn load nahi hua</b>${esc(ed.reason && ed.reason.message)}<br><br><button class="btn" id="retry" type="button">Dobara try karo</button></div>
+        ${navHtml('earn')}</div>`;
+      document.getElementById('retry').addEventListener('click', renderEarn);
+      M.enter();
+      return;
+    }
+    const e = ed.value;
+    const rewards = (e.spin && e.spin.rewards) || [];
+    const link = location.origin + '/?ref=' + encodeURIComponent(e.referral_code);
+    const shareText = 'NOX Esports pe khelo aur jeeto! Mere link se join karo: ' + link;
+    let spinsLeft = e.spin ? e.spin.spins_left : 0;
+    const limit = e.spin ? e.spin.limit : 1;
+    const rwHtml = (list) => list.length
+      ? list.map((d) => `<div class="rw-item"><b>${esc(discLabel(d))}</b><small>${d.expires_at ? 'Valid till ' + esc(fmtDate(d.expires_at)) : 'No expiry'}</small></div>`).join('')
+      : `<div class="empty"><b>Abhi koi reward nahi</b>Spin karke discount jeeto.</div>`;
+    const btnText = () => (spinsLeft > 0 ? 'SPIN NOW' : 'Kal phir spin karo');
+    const leftText = () => spinsLeft + '/' + limit + ' spin baaki aaj';
+
+    $app.innerHTML = `<div class="screen">
+      ${subHeader('EARN', balance)}
+      <div class="rf-card">
+        <span class="rf-tag">REFER &amp; EARN</span>
+        <div class="rf-amt">${money(e.referrer_bonus)}</div>
+        <p>Har friend ke liye, jab wo deposit karke paid match join kare.<br>Aapke friend ko signup par ${money(e.friend_bonus)} bonus.</p>
+        <div class="rf-link"><span id="rf-url">${esc(link)}</span><button type="button" class="rf-btn" id="rf-copy">Copy</button></div>
+        <div class="rf-row">
+          <button type="button" class="rf-btn alt" id="rf-share">Share</button>
+          <a class="rf-btn" id="rf-wa" href="https://wa.me/?text=${encodeURIComponent(shareText)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+        </div>
+        <div class="rf-stats">
+          <div><b>${esc(e.referral.total)}</b><small>Friends joined</small></div>
+          <div><b>${esc(e.referral.rewarded)}</b><small>Rewarded</small></div>
+          <div><b>${money(e.referral.earned)}</b><small>Earned</small></div>
+        </div>
+        <div class="rf-code">My Code: <b>${esc(e.referral_code)}</b></div>
+      </div>
+
+      <div class="sec-title">${ICON.gift}SPIN &amp; WIN</div>
+      <div class="wh-card">
+        ${rewards.length ? `<div class="wh-wrap"><div class="wh-ptr"></div><div class="wh-disc" id="wh-disc">${wheelSvg(rewards)}</div></div>
+        <button class="btn" type="button" id="wh-btn"${spinsLeft > 0 ? '' : ' disabled'}>${btnText()}</button>
+        <div class="wh-left" id="wh-left">${leftText()}</div>
+        <div class="wh-res" id="wh-res"></div>` : `<div class="empty"><b>Spin abhi available nahi hai</b></div>`}
+      </div>
+
+      <div class="sec-title">${ICON.check}MY REWARDS</div>
+      <div id="rw-box">${rwHtml(e.discounts || [])}</div>
+      ${navHtml('earn')}
+    </div>`;
+
+    $app.querySelector('#rf-copy').addEventListener('click', () => copyText(link).then(() => toast('Link copy ho gaya')));
+    $app.querySelector('#rf-share').addEventListener('click', () => {
+      if (navigator.share) navigator.share({ title: 'NOX Esports', text: 'NOX Esports pe khelo aur jeeto!', url: link }).catch(() => {});
+      else copyText(shareText).then(() => toast('Link copy ho gaya'));
+    });
+
+    const btn = $app.querySelector('#wh-btn');
+    if (btn) {
+      const disc = $app.querySelector('#wh-disc'), res = $app.querySelector('#wh-res'), left = $app.querySelector('#wh-left'), rwBox = $app.querySelector('#rw-box');
+      const step = 360 / rewards.length;
+      let cur = 0;
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        res.textContent = '';
+        let out;
+        try { out = await api.post('/earn/spin'); }
+        catch (ex) { res.textContent = ex.message; btn.disabled = spinsLeft <= 0; return; }
+        const jitter = (Math.random() - 0.5) * Math.max(0, step - 24);
+        const target = (((360 - (out.index * step + step / 2) + jitter) % 360) + 360) % 360;
+        cur += ((target - (cur % 360)) + 360) % 360 + 360 * 5;
+        disc.style.transform = 'rotate(' + cur + 'deg)';
+        setTimeout(async () => {
+          res.textContent = out.reward && out.reward.type !== 'none' ? 'Mubarak! ' + out.reward.label + ' mil gaya' : 'Better luck next time';
+          spinsLeft = out.spins_left;
+          btn.textContent = btnText();
+          btn.disabled = spinsLeft <= 0;
+          left.textContent = leftText();
+          try { const f = await api.get('/earn'); rwBox.innerHTML = rwHtml(f.discounts || []); } catch { /* ignore */ }
+        }, 4400);
+      });
+    }
     M.enter();
   }
 
