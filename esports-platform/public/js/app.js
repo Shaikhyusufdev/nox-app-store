@@ -336,7 +336,7 @@
     if (status === 'completed') return 'ENDED';
     if (status === 'cancelled') return 'CANCELLED';
     const ms = new Date(iso).getTime() - Date.now();
-    if (ms <= 0) return status === 'ongoing' ? 'LIVE' : 'STARTING';
+    if (ms <= 0) return status === 'ongoing' ? 'LIVE' : fmtDate(iso);
     const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
     if (d > 0) return d + 'd ' + h + 'h ' + m + 'm';
     return pad2(h) + ':' + pad2(m) + ':' + pad2(s % 60);
@@ -450,6 +450,12 @@
       : 'Khali slot par tap karke apni jagah chuno.';
     const room = t.room ? `<div class="mt-room"><div><span>Room ID</span><b>${esc(t.room.room_id)}</b></div><div><span>Password</span><b>${esc(t.room.room_password)}</b></div></div>` : '';
 
+    const dist = Array.isArray(t.prize_distribution) ? t.prize_distribution : [];
+    const ordn = (n) => n + (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
+    const prizeHtml = (t.layout === 'br' && dist.length)
+      ? `<div class="card" style="padding:14px;margin:10px 0"><b>Prizes</b>${dist.map((d) => `<div style="display:flex;justify-content:space-between;padding:6px 0"><span>${ordn(d.rank)}${size > 1 ? ' team' : ''}</span><b>${money(d.amount)}${size > 1 ? ' (' + money(Math.round(d.amount / size * 100) / 100) + ' each)' : ''}</b></div>`).join('')}${size > 1 ? '<small>Team ka prize players me barabar bantega.</small>' : ''}</div>`
+      : '';
+
     $app.innerHTML = `<div class="screen">
       ${subHeader('MATCH', balance, '#/game/' + t.game_id)}
       <div class="mt-head">
@@ -459,6 +465,7 @@
         <div class="meta" style="margin-top:6px">Entry <b>${Number(t.entry_fee) > 0 ? money(t.entry_fee) : 'FREE'}</b> &middot; Prize <b>${money(t.prize_pool)}</b> &middot; Joined <b>${t.joined_count}/${t.max_players}</b></div>
       </div>
       ${room}
+      ${prizeHtml}
       <div class="mt-note">${esc(note)}</div>
       ${board}
       ${t.rules ? `<div class="card" style="padding:14px;margin-top:10px"><b>Rules</b><p style="margin:6px 0 0;white-space:pre-wrap">${esc(t.rules)}</p></div>` : ''}
@@ -479,7 +486,9 @@
       <div class="err" id="jme"></div>
       <button class="btn" type="button" id="jmgo">${fee > 0 ? 'Pay ' + money(fee) + ' & Join' : 'Join Free'}</button>`);
     const btn = s.el.querySelector('#jmgo'), err = s.el.querySelector('#jme');
+    let needFunds = false;
     btn.addEventListener('click', async () => {
+      if (needFunds) { s.close(); go('/wallet'); return; }
       err.textContent = '';
       btn.disabled = true; btn.textContent = 'Please wait...';
       try {
@@ -490,6 +499,7 @@
       } catch (ex) {
         err.textContent = ex.message;
         btn.disabled = false; btn.textContent = fee > 0 ? 'Pay ' + money(fee) + ' & Join' : 'Join Free';
+        if (ex.status === 402) { needFunds = true; err.textContent = 'Balance kam hai. Pehle wallet me paise add karo.'; btn.textContent = 'Add Balance'; }
         if (ex.status === 409) setTimeout(() => { s.close(); renderMatch(t.id); }, 1200); // slot kisi aur ne le liya -> fresh board
       }
     });

@@ -18,6 +18,10 @@ const body = z.object({
   category_id: z.string().uuid('Category chuno'),
   mode: z.enum(['solo', 'duo', 'squad']),
   team_count: z.number().int().min(2).max(64).optional(),
+  prize_distribution: z.array(z.object({
+    rank: z.number().int().min(1).max(64),
+    amount: z.number().positive('Har rank ka prize 0 se zyada hona chahiye').max(1000000),
+  })).max(20).optional(),
   starts_at: z.string().datetime({ message: 'Start date/time sahi nahi hai' }),
   status: z.enum(STATUSES),
 });
@@ -39,7 +43,16 @@ async function shape(category_id, mode, team_count) {
   const tc = c.layout === 'red_blue' ? 2 : team_count;
   if (!team_size) return { error: 'Mode sahi nahi hai' };
   if (!tc || tc < 2 || tc > 64) return { error: 'Teams/slots 2 se 64 ke beech hone chahiye' };
-  return { category_id, mode, team_size, team_count: tc, max_players: tc * team_size };
+  return { category_id, mode, team_size, team_count: tc, max_players: tc * team_size, layout: c.layout };
+}
+
+// BR me har rank ka prize (poori team/player ka). prize_pool = sab ranks ka total. Squad/Duo me payout ke time team ke players me barabar bantega.
+function prizes(sh, dist, pool) {
+  if (sh.layout !== 'br') return { prize_distribution: [], prize_pool: r2(pool || 0) };
+  const list = (dist || []).map((x, i) => ({ rank: i + 1, amount: r2(Number(x.amount)) }));
+  if (!list.length) return { error: 'BR me kam se kam 1st rank ka prize daalo' };
+  if (list.length > sh.team_count) return { error: 'Prize ranks teams/slots se zyada nahi ho sakte' };
+  return { prize_distribution: list, prize_pool: r2(list.reduce((a, x) => a + x.amount, 0)) };
 }
 
 router.use(requireAdmin, requireRole('super_admin', 'admin'));
@@ -66,6 +79,8 @@ router.post('/', async (req, res) => {
   if (!g) return res.status(400).json({ error: 'Game nahi mila' });
   const sh = await shape(d.category_id, d.mode, d.team_count);
   if (sh.error) return res.status(400).json({ error: sh.error });
+  const pz = prizes(sh, d.prize_distribution, d.prize_pool);
+  if (pz.error) return res.status(400).json({ error: pz.error });
   const row = {
     game_id: d.game_id,
     title: d.title,
@@ -73,7 +88,8 @@ router.post('/', async (req, res) => {
     rules: d.rules || null,
     banner_url: d.banner_url || null,
     entry_fee: r2(d.entry_fee),
-    prize_pool: r2(d.prize_pool),
+    prize_pool: pz.prize_pool,
+    prize_distribution: pz.prize_distribution,
     category_id: sh.category_id,
     mode: sh.mode,
     team_size: sh.team_size,
@@ -110,11 +126,17 @@ router.patch('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Players join kar chuke hain. Cancel + refund feature abhi baaki hai' });
   }
   let sh = null;
-  if (d.category_id !== undefined || d.mode !== undefined || d.team_count !== undefined) {
+  let pz = null;
+  if (d.category_id !== undefined || d.mode !== undefined || d.team_count !== undefined || d.prize_distribution !== undefined || d.prize_pool !== undefined) {
     sh = await shape(d.category_id || cur.category_id, d.mode || cur.mode, d.team_count !== undefined ? d.team_count : cur.team_count);
     if (sh.error) return res.status(400).json({ error: sh.error });
     if (joined > 0 && (sh.category_id !== cur.category_id || sh.mode !== cur.mode || sh.team_count !== cur.team_count))
       return res.status(400).json({ error: 'Players join kar chuke hain, category/mode/teams nahi badal sakte' });
+    pz = prizes(sh, d.prize_distribution !== undefined ? d.prize_distribution : cur.prize_distribution, d.prize_pool !== undefined ? d.prize_pool : cur.prize_pool);
+    if (pz.error) return res.status(400).json({ error: pz.error });
+    const amts = (a) => (a || []).map((x) => Number(x.amount));
+    if (joined > 0 && sh.layout === 'br' && JSON.stringify(amts(pz.prize_distribution)) !== JSON.stringify(amts(cur.prize_distribution)))
+      return res.status(400).json({ error: 'Players join kar chuke hain, BR prizes nahi badal sakte' });
   }
   if (d.game_id !== undefined) {
     const { data: g } = await db.from('games').select('id').eq('id', d.game_id).maybeSingle();
@@ -127,7 +149,7 @@ router.patch('/:id', async (req, res) => {
   if (d.rules !== undefined) upd.rules = d.rules || null;
   if (d.banner_url !== undefined) upd.banner_url = d.banner_url || null;
   if (d.entry_fee !== undefined) upd.entry_fee = r2(d.entry_fee);
-  if (d.prize_pool !== undefined) upd.prize_pool = r2(d.prize_pool);
+  if (pz) { upd.prize_pool = pz.prize_pool; upd.prize_distribution = pz.prize_distribution; }
   if (sh) Object.assign(upd, { category_id: sh.category_id, mode: sh.mode, team_size: sh.team_size, team_count: sh.team_count, max_players: sh.max_players });
   if (!Object.keys(upd).length) return res.status(400).json({ error: 'Kuch badla nahi' });
 

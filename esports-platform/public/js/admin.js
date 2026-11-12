@@ -199,8 +199,14 @@
     try { return new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso; }
   }
 
+  function defaultStart() {
+    return new Date(Math.ceil(Date.now() / 3600000) * 3600000 + 3600000).toISOString(); // agla poora ghanta + 1 ghanta
+  }
+  let tPrizes = [];
+
   function renderTForm() {
-    const t = tEditing || { game_id: '', title: '', description: '', rules: '', banner_url: '', entry_fee: 0, prize_pool: 0, category_id: '', mode: 'solo', team_count: 2, starts_at: '', status: 'upcoming' };
+    const t = tEditing || { game_id: '', title: '', description: '', rules: '', banner_url: '', entry_fee: 0, prize_pool: 0, category_id: '', mode: 'solo', team_count: 2, starts_at: defaultStart(), status: 'upcoming', prize_distribution: [] };
+    tPrizes = (t.prize_distribution || []).map((x) => Number(x.amount) || 0);
     const box = document.getElementById('t-form');
     const gameOpts = '<option value="">-- Game chuno --</option>' + tGames.map((g) =>
       '<option value="' + esc(g.id) + '"' + (g.id === t.game_id ? ' selected' : '') + '>' + esc(g.name) + (g.is_active ? '' : ' (hidden)') + '</option>').join('');
@@ -215,6 +221,7 @@
       '<div><label for="t-mode">Mode</label><select id="t-mode">' + modeOpts + '</select></div></div>' +
       '<label for="t-tc">Teams / slots</label><input id="t-tc" type="number" min="2" max="64" value="' + esc(t.team_count) + '">' +
       '<div class="sub" id="t-tcnote" style="font-size:13px;opacity:.75;margin:4px 0 8px"></div>' +
+      '<div id="t-prizebox"></div>' +
       '<label for="t-title">Title</label><input id="t-title" maxlength="100" value="' + esc(t.title) + '">' +
       '<div class="grid2"><div><label for="t-fee">Entry fee (Rs)</label><input id="t-fee" type="number" min="0" step="1" value="' + esc(t.entry_fee) + '"></div>' +
       '<div><label for="t-prize">Prize pool (Rs)</label><input id="t-prize" type="number" min="0" step="1" value="' + esc(t.prize_pool) + '"></div>' +
@@ -231,6 +238,32 @@
     const selMode = document.getElementById('t-mode');
     const tcInp = document.getElementById('t-tc');
     const tcNote = document.getElementById('t-tcnote');
+    function drawPrizes(isBr, size) {
+      const box = document.getElementById('t-prizebox');
+      const prizeInp = document.getElementById('t-prize');
+      if (!isBr) { box.innerHTML = ''; prizeInp.disabled = false; return; }
+      prizeInp.disabled = true;
+      if (!tPrizes.length) tPrizes = [0, 0, 0];
+      const ord = (n) => n + (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
+      box.innerHTML = '<label>Prize per rank (sirf BR)' + (size > 1 ? ' - poori team ka' : '') + '</label>' +
+        tPrizes.map((a, i) => '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><span style="min-width:40px;font-weight:700">' + ord(i + 1) + '</span>' +
+          '<input type="number" min="0" step="1" data-prank="' + i + '" value="' + (a || '') + '" placeholder="Amount (Rs)"><span style="font-size:12px;opacity:.7;min-width:90px" data-pper="' + i + '"></span></div>').join('') +
+        '<div style="display:flex;gap:8px"><button class="btn ghost small" type="button" id="t-padd">+ Add rank</button><button class="btn ghost small" type="button" id="t-pdel">- Remove last</button></div>' +
+        '<div id="t-ptotal" style="font-size:13px;opacity:.75;margin:8px 0"></div>';
+      function upd() {
+        const total = tPrizes.reduce((x, y) => x + (Number(y) || 0), 0);
+        prizeInp.value = total;
+        document.getElementById('t-ptotal').textContent = 'Total prize pool: Rs ' + total + (size > 1 ? ' (har rank ka prize team ke ' + size + ' players me barabar bantega)' : '');
+        box.querySelectorAll('[data-pper]').forEach((el) => {
+          const v = Number(tPrizes[Number(el.getAttribute('data-pper'))]) || 0;
+          el.textContent = size > 1 && v ? 'Rs ' + (Math.round(v / size * 100) / 100) + ' each' : '';
+        });
+      }
+      box.querySelectorAll('[data-prank]').forEach((inp) => inp.addEventListener('input', () => { tPrizes[Number(inp.getAttribute('data-prank'))] = Number(inp.value) || 0; upd(); }));
+      document.getElementById('t-padd').addEventListener('click', () => { if (tPrizes.length < 20) { tPrizes.push(0); drawPrizes(true, size); } });
+      document.getElementById('t-pdel').addEventListener('click', () => { if (tPrizes.length > 1) { tPrizes.pop(); drawPrizes(true, size); } });
+      upd();
+    }
     function syncTeams(fillDefault) {
       const c = catById(selCat.value);
       const size = { solo: 1, duo: 2, squad: 4 }[selMode.value];
@@ -243,6 +276,7 @@
         const n = Number(tcInp.value) || 0;
         tcNote.textContent = c ? n + ' ' + (size === 1 ? 'players' : 'teams') + ' x ' + size + ' = ' + (n * size) + ' players total' : 'Pehle category chuno';
       }
+      drawPrizes(!!c && c.layout === 'br', size);
     }
     selCat.addEventListener('change', () => syncTeams(true));
     selMode.addEventListener('change', () => syncTeams(true));
@@ -266,6 +300,7 @@
       category_id: document.getElementById('t-cat').value,
       mode: document.getElementById('t-mode').value,
       team_count: parseInt(document.getElementById('t-tc').value, 10) || 2,
+      prize_distribution: ((catById(document.getElementById('t-cat').value) || {}).layout === 'br') ? tPrizes.map((a, i) => ({ rank: i + 1, amount: Number(a) || 0 })) : [],
       starts_at: new Date(startVal).toISOString(),
       status: document.getElementById('t-status').value,
       banner_url: document.getElementById('t-banner').value.trim(),
