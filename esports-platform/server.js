@@ -41,6 +41,7 @@ app.use((req, res, next) => {
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin-auth'));
+app.use('/api/admin/games', require('./routes/admin-games'));
 app.use('/api/payments', payments);
 app.use('/api', require('./routes/tournaments'));
 
