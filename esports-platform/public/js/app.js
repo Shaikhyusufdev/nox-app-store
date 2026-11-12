@@ -327,7 +327,7 @@
 .mt-slot em{font-style:normal;font-size:10px;font-weight:800;color:#fff;background:#1fa99b;border-radius:6px;padding:2px 6px}
 .mt-note{font-size:13px;color:#6b665e;text-align:center;margin:8px 0}
 .mt-room{margin:10px 0;padding:14px;border-radius:16px;background:#1f2430;color:#fff}
-.mt-room div{display:flex;justify-content:space-between;padding:4px 0}
+.mt-copy{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 0;background:none;border:0;color:#fff;font:inherit;cursor:pointer;text-align:left}.mt-copy b{flex:1;text-align:right;font-size:16px;letter-spacing:.5px;word-break:break-all}.mt-copy em{font-style:normal;font-size:10px;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:999px;white-space:nowrap}.mt-copy+.mt-copy{border-top:1px solid rgba(255,255,255,.15)}
 .mt-conf{font-size:14px;line-height:1.7;margin-bottom:10px}
 `;
   function injectMatchCss() {
@@ -422,6 +422,35 @@
     return `<button type="button" class="mt-slot open" data-team="${team}" data-slot="${slot}" data-label="${esc(label)}"${canJoin ? '' : ' disabled'}><i>${esc(label)}</i><b>${canJoin ? 'Join' : 'Empty'}</b></button>`;
   }
 
+  // tap to copy (https par clipboard API, warna purana tareeka)
+  function copyText(txt) {
+    const legacy = () => {
+      const ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch { /* ignore */ }
+      ta.remove();
+    };
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(txt).catch(legacy);
+    legacy();
+    return Promise.resolve();
+  }
+  const roomHtml = (room) => `<div class="mt-room">
+      <button type="button" class="mt-copy" data-copy="${esc(room.room_id)}"><span>Room ID</span><b>${esc(room.room_id)}</b><em>Tap to copy</em></button>
+      <button type="button" class="mt-copy" data-copy="${esc(room.room_password)}"><span>Password</span><b>${esc(room.room_password)}</b><em>Tap to copy</em></button>
+    </div>`;
+  function bindCopy(root) {
+    root.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => {
+      copyText(b.getAttribute('data-copy')).then(() => toast('Copied!'));
+    }));
+  }
+  function roomSheet(room) {
+    const s = openSheet('Room Details', `
+      <div class="mt-conf">Match shuru hone par is Room ID aur Password se game me join karo.</div>
+      ${roomHtml(room)}`);
+    bindCopy(s.el);
+  }
+
   async function renderMatch(id) {
     injectMatchCss();
     const rep = (n, cls) => Array.from({ length: n }, () => `<i class="sk ${cls}"></i>`).join('');
@@ -461,7 +490,7 @@
       : !JOINABLE.includes(t.status) ? 'Is match ki registration band hai.'
       : t.joined_count >= t.max_players ? 'Match full ho chuka hai.'
       : 'Khali slot par tap karke apni jagah chuno.';
-    const room = t.room ? `<div class="mt-room"><div><span>Room ID</span><b>${esc(t.room.room_id)}</b></div><div><span>Password</span><b>${esc(t.room.room_password)}</b></div></div>` : '';
+    const room = t.room ? roomHtml(t.room) : '';
 
     const dist = Array.isArray(t.prize_distribution) ? t.prize_distribution : [];
     const ordn = (n) => n + (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
@@ -486,8 +515,10 @@
     </div>`;
     $app.querySelectorAll('button.mt-slot.open:not(:disabled)').forEach((b) => b.addEventListener('click', () =>
       joinSlotSheet(t, Number(b.getAttribute('data-team')), Number(b.getAttribute('data-slot')), b.getAttribute('data-label'))));
+    bindCopy($app);
     startCd();
     M.enter();
+    if (t.room) roomSheet(t.room); // joined user + admin ne room publish kiya -> popup
   }
 
   function joinSlotSheet(t, team, slot, label) {

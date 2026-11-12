@@ -29,7 +29,7 @@ const body = z.object({
 const log = (req, action, details) =>
   db.from('admin_logs').insert({ admin_id: req.admin.id, action, target_type: 'tournament', target_id: details.id, details, ip: req.ip });
 
-// room_id / room_password abhi list me nahi bhejte (wo agle step me alag publish flow se aayenge)
+// room_id / room_password list me nahi bhejte (admin ko alag GET /:id/room se milte hain)
 const strip = (t) => { const { room_id, room_password, ...rest } = t; return rest; };
 const r2 = (n) => Math.round(n * 100) / 100;
 
@@ -169,6 +169,37 @@ router.delete('/:id', async (req, res) => {
   if (error) return res.status(500).json({ error: 'Could not delete tournament' });
   await log(req, 'tournament_delete', { id: cur.id, title: cur.title });
   res.json({ ok: true });
+});
+
+// ---------- Room ID / password (admin publish karta hai, sirf joined users ko dikhta hai) ----------
+const roomBody = z.object({
+  room_id: z.string().trim().min(2, 'Room ID likho').max(40),
+  room_password: z.string().trim().min(1, 'Password likho').max(40),
+  start: z.boolean().optional(), // true = match ko Ongoing bhi kar do
+});
+
+router.get('/:id/room', async (req, res) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({ error: 'Invalid id' });
+  const { data, error } = await db.from('tournaments').select('room_id, room_password, room_published').eq('id', req.params.id).maybeSingle();
+  if (error) return res.status(500).json({ error: 'Could not load room' });
+  if (!data) return res.status(404).json({ error: 'Tournament not found' });
+  res.json({ room: data });
+});
+
+router.put('/:id/room', async (req, res) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({ error: 'Invalid id' });
+  const p = roomBody.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: p.error.issues[0].message });
+  const { data: cur } = await db.from('tournaments').select('id, status').eq('id', req.params.id).maybeSingle();
+  if (!cur) return res.status(404).json({ error: 'Tournament not found' });
+  if (cur.status === 'completed' || cur.status === 'cancelled') return res.status(400).json({ error: 'Is match ka room ab publish nahi ho sakta' });
+  const upd = { room_id: p.data.room_id, room_password: p.data.room_password, room_published: true };
+  const startNow = !!p.data.start && ['upcoming', 'registration_open', 'full'].includes(cur.status);
+  if (startNow) upd.status = 'ongoing';
+  const { data, error } = await db.from('tournaments').update(upd).eq('id', cur.id).select().maybeSingle();
+  if (error) return res.status(500).json({ error: 'Could not publish room' });
+  await log(req, 'tournament_room_publish', { id: cur.id, started: startNow }); // room ID/password log me save nahi karte
+  res.json({ ok: true, started: startNow, tournament: strip(data) });
 });
 
 // ---------- Match categories (BR, CS, Lone Wolf...) ----------

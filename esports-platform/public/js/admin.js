@@ -321,6 +321,51 @@
     }
   }
 
+  // Room ID + password dalo aur joined players ko publish karo (optional: match ko Ongoing bhi karo)
+  async function openRoom(t) {
+    let cur = { room_id: '', room_password: '' };
+    try { cur = (await call('GET', '/api/admin/tournaments/' + t.id + '/room')).room || cur; }
+    catch (e) { toast(e.message); return; }
+    const canStart = ['upcoming', 'registration_open', 'full'].indexOf(t.status) !== -1;
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50';
+    ov.innerHTML =
+      '<div class="a-card" style="width:100%;max-width:420px;margin:0">' +
+      '<h2>Room details</h2>' +
+      '<div style="font-size:13px;opacity:.75;margin-bottom:8px">' + esc(t.title) + ' | ' + esc(t.joined_count) + ' joined</div>' +
+      '<label for="r-id">Room ID</label><input id="r-id" maxlength="40" autocomplete="off" value="' + esc(cur.room_id) + '">' +
+      '<label for="r-pw">Password</label><input id="r-pw" maxlength="40" autocomplete="off" value="' + esc(cur.room_password) + '">' +
+      (canStart ? '<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="r-start" checked style="width:auto"> Match start (Ongoing) bhi kar do</label>' : '') +
+      '<div class="err" id="r-err"></div>' +
+      '<button class="btn" id="r-save">Publish to joined players</button>' +
+      '<button class="btn ghost" id="r-cancel" style="margin-top:10px;width:100%">Cancel</button></div>';
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+    ov.querySelector('#r-cancel').addEventListener('click', close);
+    const err = ov.querySelector('#r-err');
+    const btn = ov.querySelector('#r-save');
+    btn.addEventListener('click', async () => {
+      err.textContent = '';
+      const startEl = ov.querySelector('#r-start');
+      btn.disabled = true;
+      try {
+        const out = await call('PUT', '/api/admin/tournaments/' + t.id + '/room', {
+          room_id: ov.querySelector('#r-id').value.trim(),
+          room_password: ov.querySelector('#r-pw').value.trim(),
+          start: startEl ? startEl.checked : false,
+        });
+        toast(out.started ? 'Room published, match live' : 'Room published');
+        close();
+        await loadTournaments();
+      } catch (e) {
+        err.textContent = e.message;
+        btn.disabled = false;
+      }
+    });
+    ov.querySelector('#r-id').focus();
+  }
+
   function renderTList() {
     const box = document.getElementById('t-list');
     if (!tournaments.length) { box.innerHTML = '<div class="empty">Abhi koi tournament nahi. Upar form se pehla tournament add karo.</div>'; return; }
@@ -329,9 +374,14 @@
       ' | Entry Rs' + esc(t.entry_fee) + ' | Prize Rs' + esc(t.prize_pool) +
       ' | ' + esc(t.joined_count) + '/' + esc(t.max_players) + ' joined | ' + esc(fmtDate(t.starts_at)) + '</span></div>' +
       '<span class="pill' + ((t.status === 'cancelled' || t.status === 'completed') ? ' off' : '') + '">' + esc(t.status) + '</span>' +
+      '<button class="btn ghost small" data-troom="' + esc(t.id) + '">' + (t.room_published ? 'Room (set)' : 'Room / Start') + '</button>' +
       '<button class="btn ghost small" data-tedit="' + esc(t.id) + '">Edit</button>' +
       '<button class="btn ghost small" data-tdel="' + esc(t.id) + '">Delete</button></div>'
     ).join('');
+    box.querySelectorAll('[data-troom]').forEach((b) => b.addEventListener('click', () => {
+      const t = tournaments.find((x) => x.id === b.getAttribute('data-troom'));
+      if (t) openRoom(t);
+    }));
     box.querySelectorAll('[data-tdel]').forEach((b) => b.addEventListener('click', async () => {
       const t = tournaments.find((x) => x.id === b.getAttribute('data-tdel'));
       if (!t || !window.confirm('Delete "' + t.title + '"? Ye wapas nahi aayega.')) return;
