@@ -57,16 +57,21 @@
     email.focus();
   }
 
+  let adminRole = '';
   function showDash(admin) {
+    adminRole = admin.role;
     root.innerHTML =
       '<div class="a-wrap wide"><div class="top"><div><h1>Welcome, ' + esc(admin.name) + '</h1>' +
       '<span class="pill">' + esc(admin.role) + '</span></div>' +
       '<button class="btn ghost" id="a-logout">Logout</button></div>' +
+      '<div id="a-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>' +
+      '<div id="sec-dash"></div><div id="sec-users" hidden></div><div id="sec-deps" hidden></div>' +
+      '<div id="sec-matches" hidden>' +
       '<div class="a-card" id="games-form"></div>' +
       '<div class="a-card"><h2>Games</h2><div id="games-list"><div class="empty">Loading...</div></div></div>' +
       '<div class="a-card"><h2>Match categories</h2><div id="c-box"></div></div>' +
       '<div class="a-card" id="t-form"></div>' +
-      '<div class="a-card"><h2>Tournaments</h2><div id="t-list"><div class="empty">Loading...</div></div></div></div>';
+      '<div class="a-card"><h2>Tournaments</h2><div id="t-list"><div class="empty">Loading...</div></div></div></div></div>';
     document.getElementById('a-logout').addEventListener('click', async () => {
       try { await call('POST', '/api/admin/logout'); } catch (e) { /* ignore */ }
       toast('Logged out');
@@ -74,6 +79,8 @@
     });
     initGames();
     initTournaments();
+    tabLoaded = {};
+    openTab('dash');
   }
 
   // ---------- Games ----------
@@ -449,6 +456,177 @@
         renderTForm();
       } catch (e) { err.textContent = e.message; btn.disabled = false; }
     });
+  }
+
+  // ---------- Tabs, Dashboard, Users, Deposits ----------
+  const TAB_DEFS = [['dash', 'Dashboard'], ['users', 'Users'], ['deps', 'Deposits'], ['matches', 'Matches']];
+  let tabLoaded = {};
+  const inr = (n) => 'Rs ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  const pill = (txt, off) => '<span class="pill' + (off ? ' off' : '') + '">' + esc(txt) + '</span>';
+
+  function openTab(key) {
+    const bar = document.getElementById('a-tabs');
+    bar.innerHTML = TAB_DEFS.map((t) => '<button class="btn ' + (t[0] === key ? '' : 'ghost ') + 'small" data-tab="' + t[0] + '">' + t[1] + '</button>').join('');
+    bar.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => openTab(b.getAttribute('data-tab'))));
+    TAB_DEFS.forEach((t) => { const el = document.getElementById('sec-' + t[0]); if (el) el.hidden = t[0] !== key; });
+    if (key === 'dash') loadDash();
+    if (key === 'users' && !tabLoaded.users) { tabLoaded.users = true; loadUsers(1); }
+    if (key === 'deps' && !tabLoaded.deps) { tabLoaded.deps = true; loadDeposits(1); }
+  }
+
+  function modal(inner) {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50';
+    ov.innerHTML = '<div class="a-card" style="width:100%;max-width:480px;margin:0;max-height:92vh;overflow:auto">' + inner + '</div>';
+    document.body.appendChild(ov);
+    const close = () => ov.remove();
+    ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+    return { el: ov, close: close };
+  }
+
+  function pager(el, page, total, size, fn) {
+    const pages = Math.max(1, Math.ceil(total / size));
+    el.insertAdjacentHTML('beforeend',
+      '<div style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px">' +
+      '<button class="btn ghost small" data-pp' + (page <= 1 ? ' disabled' : '') + '>Prev</button>' +
+      '<span style="font-size:13px;opacity:.75">Page ' + page + ' / ' + pages + ' (' + total + ')</span>' +
+      '<button class="btn ghost small" data-pn' + (page >= pages ? ' disabled' : '') + '>Next</button></div>');
+    el.querySelector('[data-pp]').addEventListener('click', () => fn(page - 1));
+    el.querySelector('[data-pn]').addEventListener('click', () => fn(page + 1));
+  }
+
+  async function loadDash() {
+    const box = document.getElementById('sec-dash');
+    box.innerHTML = '<div class="a-card"><h2>Dashboard</h2><div class="empty">Loading...</div></div>';
+    try {
+      const s = (await call('GET', '/api/admin/manage/stats')).stats || {};
+      const tile = (label, val) => '<div style="border:1px solid rgba(128,128,128,.3);border-radius:12px;padding:12px"><div style="font-size:12px;opacity:.7">' + esc(label) + '</div><div style="font-size:20px;font-weight:800;margin-top:4px">' + esc(val) + '</div></div>';
+      box.innerHTML = '<div class="a-card"><h2>Dashboard</h2><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px">' + [
+        tile('Total users', s.users_total || 0),
+        tile('New users today', s.users_today || 0),
+        tile('Blocked users', s.users_blocked || 0),
+        tile('Deposits (total)', inr(s.deposits_total)),
+        tile('Deposits today', inr(s.deposits_today)),
+        tile('Deposits pending', s.deposits_pending || 0),
+        tile('Withdrawals pending', (s.withdrawals_pending_count || 0) + ' (' + inr(s.withdrawals_pending_amount) + ')'),
+        tile('Withdrawn (paid)', inr(s.withdrawals_paid_total)),
+        tile('Entry fees collected', inr(s.entry_fees_total)),
+        tile('Prizes paid', inr(s.prizes_total)),
+        tile('Users ke wallet me total', inr(s.wallet_total)),
+        tile('Open matches', s.matches_open || 0),
+        tile('Live matches', s.matches_live || 0),
+      ].join('') + '</div></div>';
+    } catch (e) {
+      box.innerHTML = '<div class="a-card"><h2>Dashboard</h2><div class="err">' + esc(e.message) + '</div><div class="sub" style="font-size:13px;opacity:.75;margin-top:8px">Agar "Could not load stats" aaye to supabase-admin-stats.sql Supabase SQL Editor me run karo.</div></div>';
+    }
+  }
+
+  // ----- Users -----
+  let uQuery = '';
+  let uPage = 1;
+  async function loadUsers(page) {
+    uPage = page;
+    const box = document.getElementById('sec-users');
+    if (!box.querySelector('#u-list')) {
+      box.innerHTML = '<div class="a-card"><h2>Users</h2>' +
+        '<div style="display:flex;gap:8px;margin-bottom:10px"><input id="u-q" placeholder="Username / email / user code" maxlength="40" value="' + esc(uQuery) + '"><button class="btn small" id="u-go">Search</button></div>' +
+        '<div id="u-list"><div class="empty">Loading...</div></div></div>';
+      const run = () => { uQuery = document.getElementById('u-q').value.trim(); loadUsers(1); };
+      box.querySelector('#u-go').addEventListener('click', run);
+      box.querySelector('#u-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') run(); });
+    }
+    const list = document.getElementById('u-list');
+    list.innerHTML = '<div class="empty">Loading...</div>';
+    try {
+      const out = await call('GET', '/api/admin/manage/users?page=' + page + '&q=' + encodeURIComponent(uQuery));
+      const users = out.users || [];
+      list.innerHTML = users.length ? users.map((u) =>
+        '<div class="row"><div class="info"><b>' + esc(u.username) + '</b><span>' + esc(u.user_code) + ' | ' + esc(u.email) +
+        ' | Dep ' + inr(u.deposit_balance) + ' | Win ' + inr(u.winnings_balance) + ' | Bonus ' + inr(u.bonus_balance) + '</span></div>' +
+        pill(u.status, u.status !== 'active') +
+        '<button class="btn ghost small" data-uview="' + esc(u.id) + '">Manage</button></div>').join('')
+        : '<div class="empty">Koi user nahi mila.</div>';
+      list.querySelectorAll('[data-uview]').forEach((b) => b.addEventListener('click', () => openUser(b.getAttribute('data-uview'))));
+      pager(list, out.page, out.total, out.page_size, loadUsers);
+    } catch (e) { list.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+  }
+
+  async function openUser(id) {
+    let d;
+    try { d = await call('GET', '/api/admin/manage/users/' + id); } catch (e) { toast(e.message); return; }
+    const u = d.user;
+    const tx = d.transactions || [];
+    const canBlock = adminRole === 'super_admin' || adminRole === 'admin';
+    const canAdj = adminRole === 'super_admin';
+    const txHtml = tx.length ? tx.map((t) =>
+      '<div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:4px 0"><span>' + esc(t.type) + ' (' + esc(t.balance_type) + ')' + (t.note ? ' - ' + esc(t.note) : '') + '</span><b>' + (t.direction === 'credit' ? '+' : '-') + inr(t.amount) + '</b></div>').join('')
+      : '<div class="empty">Koi transaction nahi</div>';
+    const m = modal(
+      '<h2>' + esc(u.username) + ' ' + pill(u.status, u.status !== 'active') + '</h2>' +
+      '<div style="font-size:13px;opacity:.75;margin-bottom:10px">' + esc(u.user_code) + ' | ' + esc(u.email) + ' | joined ' + esc(fmtDate(u.created_at)) + '</div>' +
+      '<div style="font-size:14px;line-height:1.8">Deposit: <b>' + inr(u.deposit_balance) + '</b> | Winnings: <b>' + inr(u.winnings_balance) + '</b> | Bonus: <b>' + inr(u.bonus_balance) + '</b><br>' +
+      'Matches: <b>' + esc(u.total_matches) + '</b> | Wins: <b>' + esc(u.total_wins) + '</b> | Earnings: <b>' + inr(u.total_earnings) + '</b> | Referral code: <b>' + esc(u.referral_code) + '</b></div>' +
+      (canBlock ? '<button class="btn ghost" id="m-block" style="margin-top:12px;width:100%">' + (u.status === 'active' ? 'Block user' : 'Unblock user') + '</button>' : '') +
+      (canAdj ?
+        '<h2 style="margin-top:16px">Balance adjust</h2>' +
+        '<div class="grid2"><div><label for="m-bt">Balance</label><select id="m-bt"><option value="deposit">Deposit</option><option value="winnings">Winnings</option><option value="bonus">Bonus</option></select></div>' +
+        '<div><label for="m-dir">Action</label><select id="m-dir"><option value="credit">Add</option><option value="debit">Cut</option></select></div></div>' +
+        '<label for="m-amt">Amount (Rs)</label><input id="m-amt" type="number" min="1" step="1">' +
+        '<label for="m-note">Reason (zaroori)</label><input id="m-note" maxlength="100">' +
+        '<div class="err" id="m-err"></div><button class="btn" id="m-apply">Apply</button>' : '') +
+      '<h2 style="margin-top:16px">Recent transactions</h2>' + txHtml +
+      '<button class="btn ghost" id="m-close" style="margin-top:14px;width:100%">Close</button>');
+    const el = m.el;
+    el.querySelector('#m-close').addEventListener('click', m.close);
+    const refresh = () => { m.close(); openUser(id); loadUsers(uPage); };
+    const blockBtn = el.querySelector('#m-block');
+    if (blockBtn) blockBtn.addEventListener('click', async () => {
+      const to = u.status === 'active' ? 'blocked' : 'active';
+      if (!window.confirm((to === 'blocked' ? 'Block' : 'Unblock') + ' "' + u.username + '"?')) return;
+      blockBtn.disabled = true;
+      try { await call('PATCH', '/api/admin/manage/users/' + id + '/status', { status: to }); toast(to === 'blocked' ? 'User blocked' : 'User unblocked'); refresh(); }
+      catch (e) { toast(e.message); blockBtn.disabled = false; }
+    });
+    const applyBtn = el.querySelector('#m-apply');
+    if (applyBtn) applyBtn.addEventListener('click', async () => {
+      const err = el.querySelector('#m-err');
+      err.textContent = '';
+      const body = {
+        balance_type: el.querySelector('#m-bt').value,
+        direction: el.querySelector('#m-dir').value,
+        amount: Number(el.querySelector('#m-amt').value),
+        note: el.querySelector('#m-note').value.trim(),
+      };
+      if (!Number.isFinite(body.amount) || body.amount <= 0) { err.textContent = 'Sahi amount daalo'; return; }
+      if (body.note.length < 3) { err.textContent = 'Reason likho (kam se kam 3 letters)'; return; }
+      if (!window.confirm((body.direction === 'credit' ? 'ADD ' : 'CUT ') + inr(body.amount) + ' ' + body.balance_type + ' - ' + u.username + '?')) return;
+      applyBtn.disabled = true;
+      try { await call('POST', '/api/admin/manage/users/' + id + '/adjust', body); toast('Balance updated'); refresh(); }
+      catch (e) { err.textContent = e.message; applyBtn.disabled = false; }
+    });
+  }
+
+  // ----- Deposits -----
+  let dStatus = '';
+  async function loadDeposits(page) {
+    const box = document.getElementById('sec-deps');
+    if (!box.querySelector('#d-list')) {
+      box.innerHTML = '<div class="a-card"><h2>Deposits</h2>' +
+        '<label for="d-status">Status</label><select id="d-status"><option value="">All</option><option value="success">Success</option><option value="pending">Pending</option><option value="failed">Failed</option><option value="rejected">Rejected</option></select>' +
+        '<div id="d-list" style="margin-top:10px"><div class="empty">Loading...</div></div></div>';
+      box.querySelector('#d-status').addEventListener('change', (e) => { dStatus = e.target.value; loadDeposits(1); });
+    }
+    const list = document.getElementById('d-list');
+    list.innerHTML = '<div class="empty">Loading...</div>';
+    try {
+      const out = await call('GET', '/api/admin/manage/deposits?page=' + page + '&status=' + encodeURIComponent(dStatus));
+      const rows = out.deposits || [];
+      list.innerHTML = rows.length ? rows.map((x) =>
+        '<div class="row"><div class="info"><b>' + inr(x.amount) + ' - ' + esc(x.username) + '</b><span>' + esc(x.email) + ' | ' + esc(x.method) + ' | ' + esc(fmtDate(x.created_at)) + (x.cf_order_id ? ' | ' + esc(x.cf_order_id) : '') + '</span></div>' +
+        pill(x.status, x.status !== 'success') + '</div>').join('')
+        : '<div class="empty">Koi deposit nahi.</div>';
+      pager(list, out.page, out.total, out.page_size, loadDeposits);
+    } catch (e) { list.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
   }
 
   call('GET', '/api/admin/me').then((out) => showDash(out.admin)).catch(showLogin);
