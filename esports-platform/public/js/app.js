@@ -215,12 +215,20 @@
     </div>`;
   }
   async function renderHome() {
+    injectMatchCss();
     $app.innerHTML = skeletonHome();
     M.nav();
-    const [w, g] = await Promise.allSettled([api.get('/wallet'), api.get('/games')]);
+    const [w, g, c] = await Promise.allSettled([api.get('/wallet'), api.get('/games'), api.get('/categories')]);
     if (path() !== '/') return; // user dusre page pe chala gaya
     const balance = w.status === 'fulfilled' ? w.value.wallet.total_balance : 0;
     const games = g.status === 'fulfilled' ? g.value.games : [];
+    const cats = c.status === 'fulfilled' ? c.value.categories : [];
+    const game = games[0] || null; // sirf EK game (Free Fire) hai, uske matches seedha home pe
+    let list = [];
+    if (game) {
+      try { list = (await api.get('/tournaments?game=' + game.id)).tournaments; } catch { list = []; }
+      if (path() !== '/') return;
+    }
     const name = state.user.username || 'Player';
 
     const quick = [
@@ -228,23 +236,15 @@
       ['#/rank', 'Top Players', 'trophy', '#1f9a8f'],
       ['#/wallet', 'My Wallet', 'wallet', '#2fae7c'],
       ['#/support', 'Support', 'headset', '#6a5acd'],
-    ].map(([href, label, icon, c]) =>
-      `<a href="${href}"><span class="ico" style="--c:${c}">${ICON[icon]}</span>${label}</a>`).join('');
+    ].map(([href, label, icon, c2]) =>
+      `<a href="${href}"><span class="ico" style="--c:${c2}">${ICON[icon]}</span>${label}</a>`).join('');
 
     const contests = [
       ['Upcoming', 'clock', '#1f9a8f'],
       ['Ongoing', 'play', '#6a5acd'],
       ['Completed', 'check', '#2fae7c'],
-    ].map(([label, icon, c]) =>
-      `<button class="contest" data-contest="${label.toLowerCase()}" style="--c:${c}">${ICON[icon]}${label}</button>`).join('');
-
-    const gamesHtml = games.length
-      ? `<div class="games">${games.map((x) => `
-          <button class="game" data-game="${esc(x.id)}">
-            ${x.image_url ? `<img src="${esc(x.image_url)}" alt="" loading="lazy">` : ''}
-            <span>${esc(x.name)}</span>
-          </button>`).join('')}</div>`
-      : `<div class="empty"><b>Abhi koi game nahi hai</b>Admin panel se games add hone ke baad yaha dikhenge.</div>`;
+    ].map(([label, icon, c2]) =>
+      `<button class="contest" data-contest="${label.toLowerCase()}" style="--c:${c2}">${ICON[icon]}${label}</button>`).join('');
 
     $app.innerHTML = `<div class="screen">
       <header class="topbar">
@@ -255,24 +255,31 @@
       <div class="quick">${quick}</div>
       <div class="sec-title">${ICON.shield}MY CONTESTS</div>
       <div class="contests">${contests}</div>
-      <div class="sec-title">${ICON.bolt}ESPORT GAMES</div>
-      ${gamesHtml}
+      <div id="mlist">${game ? '' : `<div class="empty"><b>Abhi koi game nahi hai</b>Admin panel se game add hone ke baad yaha matches dikhenge.</div>`}</div>
       ${navHtml('home')}
     </div>`;
 
     $app.querySelectorAll('[data-contest]').forEach((b) =>
       b.addEventListener('click', () => go('/contests/' + b.getAttribute('data-contest'))));
-    $app.querySelectorAll('[data-game]').forEach((b) =>
-      b.addEventListener('click', () => go('/game/' + b.getAttribute('data-game'))));
+
+    if (game) {
+      const box = $app.querySelector('#mlist');
+      const drawList = () => {
+        box.innerHTML = matchListHtml(cats, list);
+        bindMatchList(box, drawList);
+        startCd();
+      };
+      drawList();
+    }
     M.enter();
   }
 
   /* ---------- Matches (Mode tabs, Category, Slots) ---------- */
-  const MODES = [['solo', 'Solo'], ['duo', 'Duo'], ['squad', 'Squad']];
+  const MODES = [['all', 'All'], ['solo', 'Solo'], ['duo', 'Duo'], ['squad', 'Squad']];
   const MODE_NAME = { solo: 'Solo', duo: 'Duo', squad: 'Squad' };
   const ST_LABEL = { upcoming: 'Upcoming', registration_open: 'Open', full: 'Full', ongoing: 'Live', completed: 'Completed', cancelled: 'Cancelled' };
   const JOINABLE = ['upcoming', 'registration_open'];
-  const gameFilter = { mode: 'solo', cat: 'all' };
+  const gameFilter = { mode: 'all', cat: 'all' };
   let cdTimer;
 
   const MATCH_CSS = `
@@ -366,6 +373,23 @@
     </button>`;
   }
 
+  // Tabs (All/Solo/Duo/Squad) + category chips + match cards (Home aur game page dono me same)
+  function matchListHtml(cats, list) {
+    const shown = list.filter((t) => (gameFilter.mode === 'all' || t.mode === gameFilter.mode) && (gameFilter.cat === 'all' || t.category_id === gameFilter.cat));
+    const tabs = MODES.map(([k, l]) => `<button type="button" data-mode="${k}" class="${gameFilter.mode === k ? 'on' : ''}">${l}</button>`).join('');
+    const chips = `<button type="button" data-cat="all" class="${gameFilter.cat === 'all' ? 'on' : ''}">All</button>` +
+      cats.map((c) => `<button type="button" data-cat="${esc(c.id)}" class="${gameFilter.cat === c.id ? 'on' : ''}">${esc(c.name)}</button>`).join('');
+    const body = shown.length
+      ? shown.map((t) => matchCard(t, t.category_name || 'Match')).join('')
+      : `<div class="empty"><b>Abhi koi match nahi</b>Is mode/category me jald naye matches aayenge.</div>`;
+    return `<div class="mt-tabs">${tabs}</div><div class="mt-chips">${chips}</div>${body}`;
+  }
+  function bindMatchList(root, redraw) {
+    root.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { gameFilter.mode = b.getAttribute('data-mode'); redraw(); }));
+    root.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => { gameFilter.cat = b.getAttribute('data-cat'); redraw(); }));
+    root.querySelectorAll('[data-match]').forEach((b) => b.addEventListener('click', () => go('/match/' + b.getAttribute('data-match'))));
+  }
+
   async function renderGame(gameId) {
     injectMatchCss();
     const rep = (n, cls) => Array.from({ length: n }, () => `<i class="sk ${cls}"></i>`).join('');
@@ -381,23 +405,12 @@
     const balance = bal.status === 'fulfilled' ? bal.value : 0;
 
     function draw() {
-      const shown = list.filter((t) => t.mode === gameFilter.mode && (gameFilter.cat === 'all' || t.category_id === gameFilter.cat));
-      const tabs = MODES.map(([k, l]) => `<button type="button" data-mode="${k}" class="${gameFilter.mode === k ? 'on' : ''}">${l}</button>`).join('');
-      const chips = `<button type="button" data-cat="all" class="${gameFilter.cat === 'all' ? 'on' : ''}">All</button>` +
-        cats.map((c) => `<button type="button" data-cat="${esc(c.id)}" class="${gameFilter.cat === c.id ? 'on' : ''}">${esc(c.name)}</button>`).join('');
-      const body = shown.length
-        ? shown.map((t) => matchCard(t, t.category_name || 'Match')).join('')
-        : `<div class="empty"><b>Abhi koi match nahi</b>Is mode/category me jald naye matches aayenge.</div>`;
       $app.innerHTML = `<div class="screen">
         ${subHeader(game.name.toUpperCase(), balance)}
-        <div class="mt-tabs">${tabs}</div>
-        <div class="mt-chips">${chips}</div>
-        ${body}
+        ${matchListHtml(cats, list)}
         ${navHtml('home')}
       </div>`;
-      $app.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { gameFilter.mode = b.getAttribute('data-mode'); draw(); }));
-      $app.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => { gameFilter.cat = b.getAttribute('data-cat'); draw(); }));
-      $app.querySelectorAll('[data-match]').forEach((b) => b.addEventListener('click', () => go('/match/' + b.getAttribute('data-match'))));
+      bindMatchList($app, draw);
       startCd();
       M.enter();
     }
@@ -457,7 +470,7 @@
       : '';
 
     $app.innerHTML = `<div class="screen">
-      ${subHeader('MATCH', balance, '#/game/' + t.game_id)}
+      ${subHeader('MATCH', balance, '#/')}
       <div class="mt-head">
         ${cdHtml(t)}
         <h2>${esc(t.title)}</h2>
