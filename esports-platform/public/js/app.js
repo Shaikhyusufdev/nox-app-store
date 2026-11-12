@@ -4,6 +4,10 @@
   const $app = document.getElementById('app');
   const $toast = document.getElementById('toast');
   const state = { user: null };
+  const M = window.Motion || { enter() {}, nav() {} }; // motion.js na chale to app phir bhi chalta hai
+  // har user ke username se alag avatar rang (automatic)
+  function hue(str) { let h = 0; for (const c of String(str)) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+  const avatarStyle = (name) => { const h = hue(name); return `background:linear-gradient(135deg,hsl(${h} 70% 45%),hsl(${(h + 45) % 360} 75% 52%))`; };
 
   /* ---------- helpers ---------- */
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -85,7 +89,7 @@
     <header class="topbar">
       <a class="back" href="#/" aria-label="Back">${ICON.back}</a>
       <div class="title">${esc(title)}</div>
-      <a class="chip" href="#/wallet">${money(balance)}</a>
+      <a class="chip" href="#/wallet" data-count="${Number(balance) || 0}">${money(balance)}</a>
     </header>`;
 
   async function getBalance() {
@@ -118,6 +122,7 @@
       const password = document.getElementById('pw').value;
       await api.post('/auth/login', { email, password });
     });
+    M.enter();
   }
 
   function renderRegister() {
@@ -149,6 +154,7 @@
       if (r) body.ref = r;
       await api.post('/auth/register', body);
     });
+    M.enter();
   }
 
   // submit -> action() (login/register API) -> /me se user lo -> Home
@@ -162,6 +168,7 @@
       btn.disabled = true;
       const label = btn.textContent;
       btn.textContent = 'Please wait...';
+      btn.classList.add('busy');
       try {
         await action();
         state.user = (await api.get('/auth/me')).user;
@@ -170,13 +177,28 @@
         err.textContent = ex.message;
         btn.disabled = false;
         btn.textContent = label;
+        btn.classList.remove('busy');
+        form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake');
       }
     });
   }
 
   /* ---------- Home ---------- */
+  function skeletonHome() {
+    const rep = (n, cls) => Array.from({ length: n }, () => `<i class="sk ${cls}"></i>`).join('');
+    return `<div class="screen">
+      <div class="sk sk-top"></div>
+      <div class="sk-row sk-quick">${rep(4, 'sk-circle')}</div>
+      <div class="sk sk-line"></div>
+      <div class="sk-row sk-three">${rep(3, 'sk-box')}</div>
+      <div class="sk sk-line"></div>
+      <div class="sk-row sk-three">${rep(6, 'sk-card')}</div>
+      ${navHtml('home')}
+    </div>`;
+  }
   async function renderHome() {
-    $app.innerHTML = `<div class="screen"><div class="loading">Loading...</div>${navHtml('home')}</div>`;
+    $app.innerHTML = skeletonHome();
+    M.nav();
     const [w, g] = await Promise.allSettled([api.get('/wallet'), api.get('/games')]);
     if (path() !== '/') return; // user dusre page pe chala gaya
     const balance = w.status === 'fulfilled' ? w.value.wallet.total_balance : 0;
@@ -208,9 +230,9 @@
 
     $app.innerHTML = `<div class="screen">
       <header class="topbar">
-        <div class="avatar">${esc(name.charAt(0).toUpperCase())}</div>
+        <div class="avatar" style="${avatarStyle(name)}">${esc(name.charAt(0).toUpperCase())}</div>
         <div class="hello"><small>Hi, <span class="uname">${esc(name)}</span></small><b>NOX ESPORTS</b></div>
-        <a class="chip" href="#/wallet">${money(balance)}</a>
+        <a class="chip" href="#/wallet" data-count="${Number(balance) || 0}">${money(balance)}</a>
       </header>
       <div class="quick">${quick}</div>
       <div class="sec-title">${ICON.shield}MY CONTESTS</div>
@@ -224,6 +246,7 @@
       b.addEventListener('click', () => toast('Joined matches yaha dikhenge (jald aa raha hai)')));
     $app.querySelectorAll('[data-game]').forEach((b) =>
       b.addEventListener('click', () => toast('Tournament list agle step me aayegi')));
+    M.enter();
   }
 
   /* ---------- Profile (basic, full version Step 4 me) ---------- */
@@ -234,7 +257,7 @@
     $app.innerHTML = `<div class="screen">
       ${subHeader('PROFILE', balance)}
       <div class="card prof">
-        <div class="avatar">${esc((u.username || '?').charAt(0).toUpperCase())}</div>
+        <div class="avatar" style="${avatarStyle(u.username || '?')}">${esc((u.username || '?').charAt(0).toUpperCase())}</div>
         <h2>${esc(u.username)}</h2>
         <div class="mail">${esc(u.email)}</div>
         <span class="code">My Code: ${esc(u.referral_code || '-')}</span>
@@ -247,6 +270,7 @@
       state.user = null;
       go('/login');
     });
+    M.enter();
   }
 
   /* ---------- placeholder pages ---------- */
@@ -262,6 +286,7 @@
       </div>
       ${navHtml(active)}
     </div>`;
+    M.enter();
   }
 
   boot();

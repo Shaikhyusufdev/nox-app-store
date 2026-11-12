@@ -1,0 +1,100 @@
+/* NOX Esports - motion system (app.css ke baad load hota hai, app.css ko touch nahi karta) */
+
+/* ---------- press / hover feedback ---------- */
+.btn, .btn-out, .contest, .quick a, .nav a {
+  transition: scale .15s ease, translate .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+.btn:active, .btn-out:active, .contest:active, .game:active, .quick a:active, .nav a:active { scale: .96; }
+.btn, .btn-out, .contest { position: relative; overflow: hidden; }
+.chip { font-variant-numeric: tabular-nums; }
+@media (hover: hover) {
+  .btn:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 8px 20px rgba(106, 90, 205, .28); }
+  .contest:hover { translate: 0 -2px; box-shadow: var(--shadow); }
+  .quick a:hover .ico { translate: 0 -3px; box-shadow: 0 8px 16px rgba(20, 30, 60, .12); }
+  .quick .ico { transition: translate .2s ease, box-shadow .2s ease; }
+}
+
+/* ripple (JS <i class="ripple"> banata hai) */
+.ripple {
+  position: absolute; border-radius: 50%; background: currentColor; opacity: .22;
+  pointer-events: none; scale: 0; animation: ripple .6s ease-out forwards;
+}
+@keyframes ripple { to { scale: 1; opacity: 0; } }
+
+/* ---------- game cards: tilt + zoom ---------- */
+.game {
+  transform: perspective(700px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform .2s ease-out, box-shadow .25s ease, scale .15s ease;
+}
+.game img { transition: scale .5s cubic-bezier(.2, .7, .2, 1); }
+@media (hover: hover) {
+  .game:hover { box-shadow: 0 14px 30px rgba(106, 90, 205, .35); }
+  .game:hover img { scale: 1.07; }
+}
+
+/* ---------- scroll reveal (JS .rv / .in lagata hai) ---------- */
+.rv { opacity: 0; translate: 0 18px; transition: opacity .5s ease, translate .6s cubic-bezier(.2, .7, .2, 1); }
+.rv.in { opacity: 1; translate: 0 0; }
+
+/* ---------- header: scroll pe blur + shadow + shrink ---------- */
+.topbar { transition: padding .25s ease, box-shadow .25s ease, background-color .25s ease; }
+.topbar .avatar { transition: scale .25s ease; }
+.topbar.scrolled {
+  padding-top: 8px; padding-bottom: 8px;
+  background: rgba(255, 255, 255, .86);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  box-shadow: 0 8px 26px rgba(20, 30, 60, .14);
+}
+.topbar.scrolled .avatar { scale: .88; }
+
+/* ---------- bottom nav: sliding indicator ---------- */
+.nav-ind {
+  position: absolute; top: 0; width: 22px; height: 3px; margin-left: -11px;
+  border-radius: 0 0 4px 4px; background: var(--grad); pointer-events: none;
+  transition: left .45s cubic-bezier(.3, .9, .3, 1), opacity .25s ease;
+}
+.nav a.on svg { animation: navpop .45s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes navpop { 0% { scale: .75; } 100% { scale: 1; } }
+
+/* ---------- auth screens: soft ambient background + animated brand ---------- */
+.auth { position: relative; isolation: isolate; }
+.auth::before, .auth::after {
+  content: ''; position: fixed; z-index: -1; width: 320px; height: 320px; border-radius: 50%;
+  filter: blur(70px); opacity: .22; pointer-events: none;
+}
+.auth::before { top: -80px; left: -90px; background: #1f9a8f; animation: drift 14s ease-in-out infinite alternate; }
+.auth::after { bottom: -100px; right: -90px; background: #6a5acd; animation: drift 17s ease-in-out infinite alternate-reverse; }
+@keyframes drift { from { translate: 0 0; } to { translate: 40px 30px; } }
+.brand { background-size: 200% 100%; animation: brandshift 6s ease-in-out infinite alternate; }
+@keyframes brandshift { from { background-position: 0% 0; } to { background-position: 100% 0; } }
+
+/* form error shake + button spinner */
+.shake { animation: shake .4s ease; }
+@keyframes shake { 0%, 100% { translate: 0 0; } 20% { translate: -7px 0; } 40% { translate: 7px 0; } 60% { translate: -5px 0; } 80% { translate: 4px 0; } }
+.btn.busy::after {
+  content: ''; display: inline-block; width: 14px; height: 14px; margin-left: 8px; vertical-align: -2px;
+  border: 2px solid rgba(255, 255, 255, .45); border-top-color: #fff; border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { rotate: 360deg; } }
+
+/* ---------- skeleton loader (Home) ---------- */
+.sk {
+  background: linear-gradient(90deg, #eceef3 25%, #f7f8fb 37%, #eceef3 63%);
+  background-size: 400% 100%; animation: sk 1.3s ease infinite; border-radius: 12px; display: block;
+}
+@keyframes sk { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+.sk-top { height: 62px; margin: 0 -14px 14px; border-radius: 0 0 16px 16px; }
+.sk-row { display: grid; gap: 10px; margin-bottom: 20px; }
+.sk-quick { grid-template-columns: repeat(4, 1fr); justify-items: center; margin-top: 6px; }
+.sk-circle { width: 46px; height: 46px; border-radius: 50%; }
+.sk-line { width: 42%; height: 16px; margin: 4px 2px 12px; }
+.sk-three { grid-template-columns: repeat(3, 1fr); }
+.sk-box { height: 74px; }
+.sk-card { aspect-ratio: 3 / 4; border-radius: 14px; }
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .rv { opacity: 1; translate: 0 0; }
+}
