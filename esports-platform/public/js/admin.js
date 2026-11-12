@@ -135,7 +135,8 @@
       '<div class="info"><b>' + esc(g.name) + '</b><span>' + esc(g.category || 'No category') + ' | /' + esc(g.slug) + ' | order ' + esc(g.sort_order) + '</span></div>' +
       '<span class="pill' + (g.is_active ? '' : ' off') + '">' + (g.is_active ? 'Active' : 'Hidden') + '</span>' +
       '<button class="btn ghost small" data-edit="' + esc(g.id) + '">Edit</button>' +
-      '<button class="btn ghost small" data-toggle="' + esc(g.id) + '">' + (g.is_active ? 'Hide' : 'Show') + '</button></div>'
+      '<button class="btn ghost small" data-toggle="' + esc(g.id) + '">' + (g.is_active ? 'Hide' : 'Show') + '</button>' +
+      '<button class="btn ghost small" data-gdel="' + esc(g.id) + '">Delete</button></div>'
     ).join('');
     box.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => {
       editing = games.find((x) => x.id === b.getAttribute('data-edit')) || null;
@@ -148,6 +149,19 @@
       b.disabled = true;
       try { await call('PATCH', '/api/admin/games/' + g.id, { is_active: !g.is_active }); await loadGames(); }
       catch (e) { toast(e.message); b.disabled = false; }
+    }));
+    box.querySelectorAll('[data-gdel]').forEach((b) => b.addEventListener('click', async () => {
+      const g = games.find((x) => x.id === b.getAttribute('data-gdel'));
+      if (!g || !window.confirm('Delete "' + g.name + '"? Ye wapas nahi aayega.')) return;
+      b.disabled = true;
+      try {
+        await call('DELETE', '/api/admin/games/' + g.id);
+        if (editing && editing.id === g.id) { editing = null; renderForm(); }
+        toast('Game deleted');
+        await loadGames();
+        tGames = games;
+        renderTForm();
+      } catch (e) { toast(e.message); b.disabled = false; }
     }));
   }
 

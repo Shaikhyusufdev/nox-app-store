@@ -65,4 +65,16 @@ router.patch('/:id', async (req, res) => {
   res.json({ game: data });
 });
 
+router.delete('/:id', async (req, res) => {
+  if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({ error: 'Invalid id' });
+  const { data: g } = await db.from('games').select('id, name').eq('id', req.params.id).maybeSingle();
+  if (!g) return res.status(404).json({ error: 'Game not found' });
+  const { count } = await db.from('tournaments').select('id', { count: 'exact', head: true }).eq('game_id', g.id);
+  if (count > 0) return res.status(400).json({ error: 'Is game ke ' + count + ' tournaments hain. Pehle unhe delete karo, ya game ko Hide karo' });
+  const { error } = await db.from('games').delete().eq('id', g.id);
+  if (error) return res.status(500).json({ error: 'Could not delete game' });
+  await log(req, 'game_delete', { id: g.id, name: g.name });
+  res.json({ ok: true });
+});
+
 module.exports = router;
