@@ -1,0 +1,268 @@
+(function () {
+  'use strict';
+
+  const $app = document.getElementById('app');
+  const $toast = document.getElementById('toast');
+  const state = { user: null };
+
+  /* ---------- helpers ---------- */
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const money = (n) => '\u20B9' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+  let toastTimer;
+  function toast(msg) {
+    $toast.textContent = msg;
+    $toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => $toast.classList.remove('show'), 2200);
+  }
+  const svg = (inner) => `<svg viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
+  const ICON = {
+    trophy: svg('<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>'),
+    gift: svg('<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5"/>'),
+    home: svg('<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'),
+    wallet: svg('<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>'),
+    user: svg('<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
+    coin: svg('<circle cx="12" cy="12" r="9"/><path d="M14.5 9a3 3 0 0 0-2.5-1c-1.7 0-3 .9-3 2s1.3 2 3 2 3 .9 3 2-1.3 2-3 2a3 3 0 0 1-2.5-1"/><path d="M12 6v2M12 16v2"/>'),
+    headset: svg('<path d="M3 11h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5Zm0 0a9 9 0 1 1 18 0m0 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3Z"/><path d="M21 16v2a4 4 0 0 1-4 4h-5"/>'),
+    clock: svg('<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>'),
+    play: svg('<circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>'),
+    check: svg('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'),
+    bolt: svg('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'),
+    shield: svg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>'),
+    back: svg('<path d="m15 18-6-6 6-6"/>'),
+  };
+
+  /* ---------- router ---------- */
+  const PUBLIC = ['/login', '/register'];
+  const path = () => (location.hash.replace(/^#/, '') || '/').split('?')[0];
+  function go(p) {
+    if (location.hash === '#' + p) render();
+    else location.hash = p;
+  }
+
+  async function boot() {
+    try { state.user = (await api.get('/auth/me')).user; } catch { state.user = null; }
+    // referral link (?ref=CODE) se aaya aur login nahi hai -> seedha register screen
+    const ref = new URLSearchParams(location.search).get('ref');
+    if (!state.user && ref && !location.hash) location.hash = '/register';
+    window.addEventListener('hashchange', render);
+    render();
+  }
+
+  const PAGES = {
+    '/': renderHome,
+    '/profile': renderProfile,
+    '/rank': () => renderSoon('Rank', 'Leaderboard (Hall of Fame)', 'trophy'),
+    '/earn': () => renderSoon('Earn', 'Spin to Win aur Refer & Earn', 'gift'),
+    '/wallet': () => renderSoon('Wallet', 'Balance, deposit, withdraw aur history', 'wallet'),
+    '/support': () => renderSoon('Support', 'Help aur support', 'headset'),
+    '/contests': () => renderSoon('My Contests', 'Aapke joined matches yaha dikhenge', 'trophy'),
+  };
+
+  function render() {
+    const p = path();
+    if (!state.user && !PUBLIC.includes(p)) return go('/login');
+    if (state.user && PUBLIC.includes(p)) return go('/');
+    window.scrollTo(0, 0);
+    if (p === '/login') return renderLogin();
+    if (p === '/register') return renderRegister();
+    (PAGES[p] || (() => renderSoon('Not found', 'Ye page nahi mila', 'home')))();
+  }
+
+  /* ---------- shell ---------- */
+  function navHtml(active) {
+    const item = (href, key, label, icon, cls = '') =>
+      `<a href="${href}" class="${cls} ${active === key ? 'on' : ''}">${ICON[icon]}<span>${label}</span></a>`;
+    return `<nav class="nav" aria-label="Main">
+      ${item('#/rank', 'rank', 'Rank', 'trophy')}
+      ${item('#/earn', 'earn', 'Earn', 'gift')}
+      ${item('#/', 'home', '', 'home', 'home')}
+      ${item('#/wallet', 'wallet', 'Wallet', 'wallet')}
+      ${item('#/profile', 'profile', 'Profile', 'user')}
+    </nav>`;
+  }
+  const subHeader = (title, balance) => `
+    <header class="topbar">
+      <a class="back" href="#/" aria-label="Back">${ICON.back}</a>
+      <div class="title">${esc(title)}</div>
+      <a class="chip" href="#/wallet">${money(balance)}</a>
+    </header>`;
+
+  async function getBalance() {
+    try { return (await api.get('/wallet')).wallet.total_balance; } catch { return 0; }
+  }
+
+  /* ---------- auth screens ---------- */
+  function authLayout(inner) {
+    return `<div class="auth">
+      <div class="brand">NOX ESPORTS</div>
+      <p class="tag">Play. Win. Withdraw.</p>
+      ${inner}
+    </div>`;
+  }
+
+  function renderLogin() {
+    $app.innerHTML = authLayout(`
+      <h1>Login</h1>
+      <form id="f" novalidate>
+        <div class="field"><label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" inputmode="email" required></div>
+        <div class="field"><label for="pw">Password</label>
+          <input id="pw" type="password" autocomplete="current-password" required></div>
+        <div class="err" id="err"></div>
+        <button class="btn" id="go" type="submit">Login</button>
+      </form>
+      <p class="alt">Account nahi hai? <a href="#/register">Register karo</a></p>`);
+    bindAuthForm(async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('pw').value;
+      await api.post('/auth/login', { email, password });
+    });
+  }
+
+  function renderRegister() {
+    const ref = (new URLSearchParams(location.search).get('ref') || '').trim();
+    $app.innerHTML = authLayout(`
+      <h1>Create account</h1>
+      <form id="f" novalidate>
+        <div class="field"><label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" inputmode="email" required></div>
+        <div class="field"><label for="un">Username</label>
+          <input id="un" type="text" autocomplete="username" maxlength="20" required>
+          <small>3-20 characters: letters, numbers, underscore</small></div>
+        <div class="field"><label for="pw">Password</label>
+          <input id="pw" type="password" autocomplete="new-password" minlength="8" required>
+          <small>Kam se kam 8 characters</small></div>
+        <div class="field"><label for="ref">Referral code (optional)</label>
+          <input id="ref" type="text" maxlength="20" value="${esc(ref)}"></div>
+        <div class="err" id="err"></div>
+        <button class="btn" id="go" type="submit">Register</button>
+      </form>
+      <p class="alt">Pehle se account hai? <a href="#/login">Login karo</a></p>`);
+    bindAuthForm(async () => {
+      const body = {
+        email: document.getElementById('email').value.trim(),
+        username: document.getElementById('un').value.trim(),
+        password: document.getElementById('pw').value,
+      };
+      const r = document.getElementById('ref').value.trim();
+      if (r) body.ref = r;
+      await api.post('/auth/register', body);
+    });
+  }
+
+  // submit -> action() (login/register API) -> /me se user lo -> Home
+  function bindAuthForm(action) {
+    const form = document.getElementById('f');
+    const btn = document.getElementById('go');
+    const err = document.getElementById('err');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.textContent = '';
+      btn.disabled = true;
+      const label = btn.textContent;
+      btn.textContent = 'Please wait...';
+      try {
+        await action();
+        state.user = (await api.get('/auth/me')).user;
+        go('/');
+      } catch (ex) {
+        err.textContent = ex.message;
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    });
+  }
+
+  /* ---------- Home ---------- */
+  async function renderHome() {
+    $app.innerHTML = `<div class="screen"><div class="loading">Loading...</div>${navHtml('home')}</div>`;
+    const [w, g] = await Promise.allSettled([api.get('/wallet'), api.get('/games')]);
+    if (path() !== '/') return; // user dusre page pe chala gaya
+    const balance = w.status === 'fulfilled' ? w.value.wallet.total_balance : 0;
+    const games = g.status === 'fulfilled' ? g.value.games : [];
+    const name = state.user.username || 'Player';
+
+    const quick = [
+      ['#/earn', 'Earn', 'coin', '#d9a23a'],
+      ['#/rank', 'Top Players', 'trophy', '#1f9a8f'],
+      ['#/wallet', 'My Wallet', 'wallet', '#2fae7c'],
+      ['#/support', 'Support', 'headset', '#6a5acd'],
+    ].map(([href, label, icon, c]) =>
+      `<a href="${href}"><span class="ico" style="--c:${c}">${ICON[icon]}</span>${label}</a>`).join('');
+
+    const contests = [
+      ['Upcoming', 'clock', '#1f9a8f'],
+      ['Ongoing', 'play', '#6a5acd'],
+      ['Completed', 'check', '#2fae7c'],
+    ].map(([label, icon, c]) =>
+      `<button class="contest" data-contest="${label.toLowerCase()}" style="--c:${c}">${ICON[icon]}${label}</button>`).join('');
+
+    const gamesHtml = games.length
+      ? `<div class="games">${games.map((x) => `
+          <button class="game" data-game="${esc(x.id)}">
+            ${x.image_url ? `<img src="${esc(x.image_url)}" alt="" loading="lazy">` : ''}
+            <span>${esc(x.name)}</span>
+          </button>`).join('')}</div>`
+      : `<div class="empty"><b>Abhi koi game nahi hai</b>Admin panel se games add hone ke baad yaha dikhenge.</div>`;
+
+    $app.innerHTML = `<div class="screen">
+      <header class="topbar">
+        <div class="avatar">${esc(name.charAt(0).toUpperCase())}</div>
+        <div class="hello"><small>Hi, <span class="uname">${esc(name)}</span></small><b>NOX ESPORTS</b></div>
+        <a class="chip" href="#/wallet">${money(balance)}</a>
+      </header>
+      <div class="quick">${quick}</div>
+      <div class="sec-title">${ICON.shield}MY CONTESTS</div>
+      <div class="contests">${contests}</div>
+      <div class="sec-title">${ICON.bolt}ESPORT GAMES</div>
+      ${gamesHtml}
+      ${navHtml('home')}
+    </div>`;
+
+    $app.querySelectorAll('[data-contest]').forEach((b) =>
+      b.addEventListener('click', () => toast('Joined matches yaha dikhenge (jald aa raha hai)')));
+    $app.querySelectorAll('[data-game]').forEach((b) =>
+      b.addEventListener('click', () => toast('Tournament list agle step me aayegi')));
+  }
+
+  /* ---------- Profile (basic, full version Step 4 me) ---------- */
+  async function renderProfile() {
+    const balance = await getBalance();
+    if (path() !== '/profile') return;
+    const u = state.user;
+    $app.innerHTML = `<div class="screen">
+      ${subHeader('PROFILE', balance)}
+      <div class="card prof">
+        <div class="avatar">${esc((u.username || '?').charAt(0).toUpperCase())}</div>
+        <h2>${esc(u.username)}</h2>
+        <div class="mail">${esc(u.email)}</div>
+        <span class="code">My Code: ${esc(u.referral_code || '-')}</span>
+      </div>
+      <button class="btn-out" id="logout">Secure Logout</button>
+      ${navHtml('profile')}
+    </div>`;
+    document.getElementById('logout').addEventListener('click', async () => {
+      try { await api.post('/auth/logout'); } catch { /* cookie waise bhi clear ho jayegi */ }
+      state.user = null;
+      go('/login');
+    });
+  }
+
+  /* ---------- placeholder pages ---------- */
+  async function renderSoon(title, line, icon) {
+    const balance = await getBalance();
+    const active = { '/rank': 'rank', '/earn': 'earn', '/wallet': 'wallet' }[path()] || '';
+    $app.innerHTML = `<div class="screen">
+      ${subHeader(title.toUpperCase(), balance)}
+      <div class="card soon">
+        <div class="big">${ICON[icon]}</div>
+        <h2>${esc(title)}</h2>
+        <p>${esc(line)}<br>Jald aa raha hai.</p>
+      </div>
+      ${navHtml(active)}
+    </div>`;
+  }
+
+  boot();
+})();

@@ -10,7 +10,10 @@ for (const k of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'JWT_SECRET', 'ADM
 
 const app = express();
 app.set('trust proxy', 1); // Vercel proxy ke peeche
-app.use(helmet());
+// CSP: admin jo image URL dega (game/tournament banner) wo https se load ho sake, isliye img-src me https: add kiya
+const cspDirectives = { ...helmet.contentSecurityPolicy.getDefaultDirectives(), 'img-src': ["'self'", 'data:', 'https:'] };
+if (process.env.NODE_ENV !== 'production') delete cspDirectives['upgrade-insecure-requests']; // local http pe CSS/JS load hone ke liye
+app.use(helmet({ contentSecurityPolicy: { directives: cspDirectives } }));
 
 // NOTE Phase 3: Cashfree webhook ko raw body chahiye (signature verify) -- usse json parser se PEHLE mount karenge
 app.use(express.json({ limit: '100kb' }));
