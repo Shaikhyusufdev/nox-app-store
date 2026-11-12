@@ -19,6 +19,7 @@ const cspDirectives = {
   'script-src': [...dd['script-src'], CF],
   'connect-src': [...(dd['connect-src'] || ["'self'"]), CF],
   'frame-src': [...(dd['frame-src'] || ["'self'"]), CF],
+  "form-action": ["'self'", "https://*.cashfree.com"],
 };
 if (process.env.NODE_ENV !== 'production') delete cspDirectives['upgrade-insecure-requests']; // local http pe CSS/JS load hone ke liye
 app.use(helmet({ contentSecurityPolicy: { directives: cspDirectives } }));
