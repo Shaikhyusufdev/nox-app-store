@@ -174,7 +174,7 @@
 
   // ---------- Tournaments ----------
   const T_STATUS = [
-    ['upcoming', 'Upcoming (join band)'],
+    ['upcoming', 'Upcoming (join chalu)'],
     ['registration_open', 'Registration open (join chalu)'],
     ['full', 'Full'],
     ['ongoing', 'Ongoing'],

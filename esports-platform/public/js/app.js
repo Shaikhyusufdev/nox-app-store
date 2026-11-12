@@ -74,16 +74,20 @@
     '/earn': () => renderSoon('Earn', 'Spin to Win aur Refer & Earn', 'gift'),
     '/wallet': renderWallet,
     '/support': () => renderSoon('Support', 'Help aur support', 'headset'),
-    '/contests': () => renderSoon('My Contests', 'Aapke joined matches yaha dikhenge', 'trophy'),
   };
 
   function render() {
+    clearInterval(cdTimer); // match countdown purane page ka band
     const p = path();
     if (!state.user && !PUBLIC.includes(p)) return go('/login');
     if (state.user && PUBLIC.includes(p)) return go('/');
     window.scrollTo(0, 0);
     if (p === '/login') return renderLogin();
     if (p === '/register') return renderRegister();
+    let m;
+    if ((m = p.match(/^\/game\/([0-9a-f-]{36})$/i))) return renderGame(m[1]);
+    if ((m = p.match(/^\/match\/([0-9a-f-]{36})$/i))) return renderMatch(m[1]);
+    if ((m = p.match(/^\/contests(?:\/(upcoming|ongoing|completed))?$/))) return renderContests(m[1] || 'upcoming');
     (PAGES[p] || (() => renderSoon('Not found', 'Ye page nahi mila', 'home')))();
   }
 
@@ -99,9 +103,9 @@
       ${item('#/profile', 'profile', 'Profile', 'user')}
     </nav>`;
   }
-  const subHeader = (title, balance) => `
+  const subHeader = (title, balance, backHref) => `
     <header class="topbar">
-      <a class="back" href="#/" aria-label="Back">${ICON.back}</a>
+      <a class="back" href="${backHref || '#/'}" aria-label="Back">${ICON.back}</a>
       <div class="title">${esc(title)}</div>
       <a class="chip" href="#/wallet" data-count="${Number(balance) || 0}">${money(balance)}</a>
     </header>`;
@@ -257,9 +261,268 @@
     </div>`;
 
     $app.querySelectorAll('[data-contest]').forEach((b) =>
-      b.addEventListener('click', () => toast('Joined matches yaha dikhenge (jald aa raha hai)')));
+      b.addEventListener('click', () => go('/contests/' + b.getAttribute('data-contest'))));
     $app.querySelectorAll('[data-game]').forEach((b) =>
-      b.addEventListener('click', () => toast('Tournament list agle step me aayegi')));
+      b.addEventListener('click', () => go('/game/' + b.getAttribute('data-game'))));
+    M.enter();
+  }
+
+  /* ---------- Matches (Mode tabs, Category, Slots) ---------- */
+  const MODES = [['solo', 'Solo'], ['duo', 'Duo'], ['squad', 'Squad']];
+  const MODE_NAME = { solo: 'Solo', duo: 'Duo', squad: 'Squad' };
+  const ST_LABEL = { upcoming: 'Upcoming', registration_open: 'Open', full: 'Full', ongoing: 'Live', completed: 'Completed', cancelled: 'Cancelled' };
+  const JOINABLE = ['upcoming', 'registration_open'];
+  const gameFilter = { mode: 'solo', cat: 'all' };
+  let cdTimer;
+
+  const MATCH_CSS = `
+.mt-tabs{display:flex;gap:8px;margin:14px 0 8px}
+.mt-tabs button{flex:1;padding:11px 0;border-radius:12px;border:1px solid #d9d5cf;background:#fff;font-weight:700;font-size:14px;color:#33302b;cursor:pointer}
+.mt-tabs button.on{background:linear-gradient(135deg,#1fa99b,#5b52d6);color:#fff;border-color:transparent}
+.mt-chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+.mt-chips::-webkit-scrollbar{display:none}
+.mt-chips button{flex:none;padding:7px 14px;border-radius:999px;border:1px solid #d9d5cf;background:#fff;font-size:13px;font-weight:600;color:#33302b;cursor:pointer}
+.mt-chips button.on{background:#1f2430;color:#fff;border-color:#1f2430}
+.mt-card{display:block;width:100%;text-align:left;background:#fff;border:1px solid #e6e2db;border-radius:16px;padding:14px;margin-bottom:12px;cursor:pointer;position:relative;color:#1f2430;font:inherit}
+.mt-card h3{margin:0 0 4px;font-size:16px;padding-right:112px}
+.mt-card .meta{font-size:12.5px;color:#6b665e;margin-bottom:10px}
+.mt-card .row3{display:flex;gap:8px}
+.mt-card .row3 div{flex:1;background:#f5f3f0;border-radius:10px;padding:8px;text-align:center}
+.mt-card .row3 small{display:block;font-size:11px;color:#6b665e}
+.mt-card .row3 b{font-size:14px}
+.mt-bar{height:6px;border-radius:6px;background:#ece8e1;margin-top:10px;overflow:hidden}
+.mt-bar i{display:block;height:100%;background:linear-gradient(90deg,#1fa99b,#5b52d6)}
+.mt-cd{position:absolute;top:12px;right:12px;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:.4px;color:#fff;background:linear-gradient(135deg,#ff3d6e,#ff8a1f);box-shadow:0 0 0 0 rgba(255,61,110,.6);animation:mtGlow 1.6s ease-in-out infinite;font-variant-numeric:tabular-nums}
+.mt-cd.ok{background:linear-gradient(135deg,#1fa99b,#5b52d6);animation:none}
+@keyframes mtGlow{0%{box-shadow:0 0 0 0 rgba(255,61,110,.55),0 0 8px rgba(255,138,31,.5)}70%{box-shadow:0 0 0 10px rgba(255,61,110,0),0 0 18px rgba(255,138,31,.9)}100%{box-shadow:0 0 0 0 rgba(255,61,110,0),0 0 8px rgba(255,138,31,.5)}}
+@media (prefers-reduced-motion:reduce){.mt-cd{animation:none}}
+.mt-head{position:relative;background:#fff;border:1px solid #e6e2db;border-radius:16px;padding:14px;margin:10px 0}
+.mt-head h2{margin:0 0 4px;font-size:18px;padding-right:120px}
+.mt-head .meta{font-size:12.5px;color:#6b665e}
+.mt-teams{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.mt-team{border-radius:16px;padding:10px;border:2px solid}
+.mt-team.red{border-color:#ff5a5f;background:#fff4f4}
+.mt-team.blue{border-color:#3b82f6;background:#f2f7ff}
+.mt-team h4{margin:0 0 8px;text-align:center;font-size:13px;letter-spacing:1px}
+.mt-team.red h4{color:#d6333a}.mt-team.blue h4{color:#2563eb}
+.mt-brgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0}
+.mt-brteam{border:1px solid #e6e2db;background:#fff;border-radius:14px;padding:8px}
+.mt-brteam h4{margin:0 0 6px;font-size:12px;color:#6b665e;letter-spacing:.6px}
+.mt-slot{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border-radius:10px;margin-bottom:6px;font:inherit;font-size:13px;text-align:left;border:1px dashed #bdb8b0;background:#fff;color:#1f2430}
+.mt-slot:last-child{margin-bottom:0}
+.mt-slot i{font-style:normal;font-weight:800;font-size:11px;min-width:20px;height:20px;border-radius:6px;background:#ece8e1;display:grid;place-items:center}
+.mt-slot b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mt-slot.open{cursor:pointer}
+.mt-slot.open b{color:#1f9a8f}
+.mt-slot.open:disabled{cursor:default;opacity:.55}
+.mt-slot.taken{border-style:solid;border-color:#e6e2db;background:#faf9f7}
+.mt-slot.me{border-color:#1fa99b;background:#eafaf7}
+.mt-slot em{font-style:normal;font-size:10px;font-weight:800;color:#fff;background:#1fa99b;border-radius:6px;padding:2px 6px}
+.mt-note{font-size:13px;color:#6b665e;text-align:center;margin:8px 0}
+.mt-room{margin:10px 0;padding:14px;border-radius:16px;background:#1f2430;color:#fff}
+.mt-room div{display:flex;justify-content:space-between;padding:4px 0}
+.mt-conf{font-size:14px;line-height:1.7;margin-bottom:10px}
+`;
+  function injectMatchCss() {
+    if (document.getElementById('match-css')) return;
+    const st = document.createElement('style');
+    st.id = 'match-css';
+    st.textContent = MATCH_CSS;
+    document.head.appendChild(st);
+  }
+
+  const pad2 = (n) => String(n).padStart(2, '0');
+  function cdText(iso, status) {
+    if (status === 'completed') return 'ENDED';
+    if (status === 'cancelled') return 'CANCELLED';
+    const ms = new Date(iso).getTime() - Date.now();
+    if (ms <= 0) return status === 'ongoing' ? 'LIVE' : 'STARTING';
+    const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    if (d > 0) return d + 'd ' + h + 'h ' + m + 'm';
+    return pad2(h) + ':' + pad2(m) + ':' + pad2(s % 60);
+  }
+  function tickCd() {
+    $app.querySelectorAll('[data-cd]').forEach((el) => {
+      const st = el.getAttribute('data-st');
+      el.textContent = cdText(el.getAttribute('data-cd'), st);
+      el.classList.toggle('ok', st === 'completed' || st === 'cancelled');
+    });
+  }
+  function startCd() { clearInterval(cdTimer); tickCd(); cdTimer = setInterval(tickCd, 1000); }
+  const cdHtml = (t) => `<span class="mt-cd" data-cd="${esc(t.starts_at)}" data-st="${esc(t.status)}">...</span>`;
+
+  function matchCard(t, catName) {
+    const full = t.max_players > 0 ? Math.min(100, Math.round((t.joined_count / t.max_players) * 100)) : 0;
+    return `<button type="button" class="mt-card" data-match="${esc(t.id)}">
+      ${cdHtml(t)}
+      <h3>${esc(t.title)}</h3>
+      <div class="meta">${esc(catName)} &middot; ${esc(MODE_NAME[t.mode] || '')} &middot; ${esc(ST_LABEL[t.status] || t.status)} &middot; ${esc(fmtDate(t.starts_at))}</div>
+      <div class="row3">
+        <div><small>Entry</small><b>${Number(t.entry_fee) > 0 ? money(t.entry_fee) : 'FREE'}</b></div>
+        <div><small>Prize pool</small><b>${money(t.prize_pool)}</b></div>
+        <div><small>Joined</small><b>${t.joined_count}/${t.max_players}</b></div>
+      </div>
+      <div class="mt-bar"><i style="width:${full}%"></i></div>
+    </button>`;
+  }
+
+  async function renderGame(gameId) {
+    injectMatchCss();
+    const rep = (n, cls) => Array.from({ length: n }, () => `<i class="sk ${cls}"></i>`).join('');
+    $app.innerHTML = `<div class="screen"><div class="sk sk-top"></div><div class="sk-row sk-three">${rep(3, 'sk-box')}</div>${navHtml('home')}</div>`;
+    const [gs, cs, ts, bal] = await Promise.allSettled([
+      api.get('/games'), api.get('/categories'), api.get('/tournaments?game=' + gameId), getBalance(),
+    ]);
+    if (path() !== '/game/' + gameId) return;
+    const game = gs.status === 'fulfilled' ? gs.value.games.find((x) => x.id === gameId) : null;
+    if (!game) { toast('Game nahi mila'); return go('/'); }
+    const cats = cs.status === 'fulfilled' ? cs.value.categories : [];
+    const list = ts.status === 'fulfilled' ? ts.value.tournaments : [];
+    const balance = bal.status === 'fulfilled' ? bal.value : 0;
+
+    function draw() {
+      const shown = list.filter((t) => t.mode === gameFilter.mode && (gameFilter.cat === 'all' || t.category_id === gameFilter.cat));
+      const tabs = MODES.map(([k, l]) => `<button type="button" data-mode="${k}" class="${gameFilter.mode === k ? 'on' : ''}">${l}</button>`).join('');
+      const chips = `<button type="button" data-cat="all" class="${gameFilter.cat === 'all' ? 'on' : ''}">All</button>` +
+        cats.map((c) => `<button type="button" data-cat="${esc(c.id)}" class="${gameFilter.cat === c.id ? 'on' : ''}">${esc(c.name)}</button>`).join('');
+      const body = shown.length
+        ? shown.map((t) => matchCard(t, t.category_name || 'Match')).join('')
+        : `<div class="empty"><b>Abhi koi match nahi</b>Is mode/category me jald naye matches aayenge.</div>`;
+      $app.innerHTML = `<div class="screen">
+        ${subHeader(game.name.toUpperCase(), balance)}
+        <div class="mt-tabs">${tabs}</div>
+        <div class="mt-chips">${chips}</div>
+        ${body}
+        ${navHtml('home')}
+      </div>`;
+      $app.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => { gameFilter.mode = b.getAttribute('data-mode'); draw(); }));
+      $app.querySelectorAll('[data-cat]').forEach((b) => b.addEventListener('click', () => { gameFilter.cat = b.getAttribute('data-cat'); draw(); }));
+      $app.querySelectorAll('[data-match]').forEach((b) => b.addEventListener('click', () => go('/match/' + b.getAttribute('data-match'))));
+      startCd();
+      M.enter();
+    }
+    draw();
+  }
+
+  function slotBtn(team, slot, label, p, canJoin) {
+    if (p) return `<div class="mt-slot taken${p.is_me ? ' me' : ''}"><i>${esc(label)}</i><b>${esc(p.username)}</b>${p.is_me ? '<em>YOU</em>' : ''}</div>`;
+    return `<button type="button" class="mt-slot open" data-team="${team}" data-slot="${slot}" data-label="${esc(label)}"${canJoin ? '' : ' disabled'}><i>${esc(label)}</i><b>${canJoin ? 'Join' : 'Empty'}</b></button>`;
+  }
+
+  async function renderMatch(id) {
+    injectMatchCss();
+    const rep = (n, cls) => Array.from({ length: n }, () => `<i class="sk ${cls}"></i>`).join('');
+    $app.innerHTML = `<div class="screen"><div class="sk sk-top"></div><div class="sk-row sk-three">${rep(3, 'sk-box')}</div>${navHtml('home')}</div>`;
+    let t;
+    try { t = (await api.get('/tournaments/' + id)).tournament; }
+    catch (ex) {
+      if (path() !== '/match/' + id) return;
+      if (ex.status === 401) { state.user = null; return go('/login'); }
+      toast(ex.message || 'Match load nahi hua');
+      return go('/');
+    }
+    if (path() !== '/match/' + id) return;
+    const balance = await getBalance();
+    if (path() !== '/match/' + id) return;
+
+    const taken = {};
+    (t.participants || []).forEach((p) => { taken[p.team_no + '-' + p.slot_no] = p; });
+    const canJoin = !t.is_joined && JOINABLE.includes(t.status) && t.joined_count < t.max_players;
+    const size = t.team_size || 1, count = t.team_count || 2;
+
+    let board = '';
+    if (t.layout === 'br') {
+      if (size === 1) {
+        board = `<div class="mt-brgrid">${Array.from({ length: count }, (_, i) => slotBtn(i + 1, 1, String(i + 1), taken[(i + 1) + '-1'], canJoin)).join('')}</div>`;
+      } else {
+        board = `<div class="mt-brgrid">${Array.from({ length: count }, (_, i) => `<div class="mt-brteam"><h4>TEAM ${i + 1}</h4>${
+          Array.from({ length: size }, (_, j) => slotBtn(i + 1, j + 1, String(j + 1), taken[(i + 1) + '-' + (j + 1)], canJoin)).join('')}</div>`).join('')}</div>`;
+      }
+    } else {
+      const col = (team, cls, name) => `<div class="mt-team ${cls}"><h4>${name}</h4>${
+        Array.from({ length: size }, (_, j) => slotBtn(team, j + 1, String(j + 1), taken[team + '-' + (j + 1)], canJoin)).join('')}</div>`;
+      board = `<div class="mt-teams">${col(1, 'red', 'RED TEAM')}${col(2, 'blue', 'BLUE TEAM')}</div>`;
+    }
+
+    const note = t.is_joined ? 'Aap is match me join ho chuke ho. Slot match khatam hone tak aapka rahega.'
+      : !JOINABLE.includes(t.status) ? 'Is match ki registration band hai.'
+      : t.joined_count >= t.max_players ? 'Match full ho chuka hai.'
+      : 'Khali slot par tap karke apni jagah chuno.';
+    const room = t.room ? `<div class="mt-room"><div><span>Room ID</span><b>${esc(t.room.room_id)}</b></div><div><span>Password</span><b>${esc(t.room.room_password)}</b></div></div>` : '';
+
+    $app.innerHTML = `<div class="screen">
+      ${subHeader('MATCH', balance, '#/game/' + t.game_id)}
+      <div class="mt-head">
+        ${cdHtml(t)}
+        <h2>${esc(t.title)}</h2>
+        <div class="meta">${esc(t.category_name || 'Match')} &middot; ${esc(MODE_NAME[t.mode] || '')} &middot; ${esc(ST_LABEL[t.status] || t.status)} &middot; ${esc(fmtDate(t.starts_at))}</div>
+        <div class="meta" style="margin-top:6px">Entry <b>${Number(t.entry_fee) > 0 ? money(t.entry_fee) : 'FREE'}</b> &middot; Prize <b>${money(t.prize_pool)}</b> &middot; Joined <b>${t.joined_count}/${t.max_players}</b></div>
+      </div>
+      ${room}
+      <div class="mt-note">${esc(note)}</div>
+      ${board}
+      ${t.rules ? `<div class="card" style="padding:14px;margin-top:10px"><b>Rules</b><p style="margin:6px 0 0;white-space:pre-wrap">${esc(t.rules)}</p></div>` : ''}
+      ${navHtml('home')}
+    </div>`;
+    $app.querySelectorAll('button.mt-slot.open:not(:disabled)').forEach((b) => b.addEventListener('click', () =>
+      joinSlotSheet(t, Number(b.getAttribute('data-team')), Number(b.getAttribute('data-slot')), b.getAttribute('data-label'))));
+    startCd();
+    M.enter();
+  }
+
+  function joinSlotSheet(t, team, slot, label) {
+    const where = t.layout === 'br' ? (t.team_size === 1 ? 'Slot ' + label : 'Team ' + team + ', Slot ' + slot) : (team === 1 ? 'RED' : 'BLUE') + ' team, Slot ' + slot;
+    const fee = Number(t.entry_fee) || 0;
+    const s = openSheet('Confirm your slot', `
+      <div class="mt-conf"><b>${esc(t.title)}</b><br>Aapka slot: <b>${esc(where)}</b><br>Entry fee: <b>${fee > 0 ? money(fee) : 'FREE'}</b><br>
+      <small>Fee Bonus, phir Deposit, phir Winnings balance se kategi. Join ke baad slot match khatam hone tak badal nahi sakta.</small></div>
+      <div class="err" id="jme"></div>
+      <button class="btn" type="button" id="jmgo">${fee > 0 ? 'Pay ' + money(fee) + ' & Join' : 'Join Free'}</button>`);
+    const btn = s.el.querySelector('#jmgo'), err = s.el.querySelector('#jme');
+    btn.addEventListener('click', async () => {
+      err.textContent = '';
+      btn.disabled = true; btn.textContent = 'Please wait...';
+      try {
+        await api.post('/tournaments/' + t.id + '/join', { team_no: team, slot_no: slot });
+        s.close();
+        toast('Joined! Slot aapka ho gaya');
+        renderMatch(t.id);
+      } catch (ex) {
+        err.textContent = ex.message;
+        btn.disabled = false; btn.textContent = fee > 0 ? 'Pay ' + money(fee) + ' & Join' : 'Join Free';
+        if (ex.status === 409) setTimeout(() => { s.close(); renderMatch(t.id); }, 1200); // slot kisi aur ne le liya -> fresh board
+      }
+    });
+  }
+
+  async function renderContests(tab) {
+    injectMatchCss();
+    const rep = (n, cls) => Array.from({ length: n }, () => `<i class="sk ${cls}"></i>`).join('');
+    $app.innerHTML = `<div class="screen"><div class="sk sk-top"></div><div class="sk-row sk-three">${rep(3, 'sk-box')}</div>${navHtml('home')}</div>`;
+    const [cs, ct, bal] = await Promise.allSettled([api.get('/my/contests'), api.get('/categories'), getBalance()]);
+    if (!path().startsWith('/contests')) return;
+    const rows = cs.status === 'fulfilled' ? cs.value.contests : [];
+    const cats = ct.status === 'fulfilled' ? ct.value.categories : [];
+    const catName = (id) => (cats.find((c) => c.id === id) || {}).name || 'Match';
+    const balance = bal.status === 'fulfilled' ? bal.value : 0;
+    const GROUP = { upcoming: ['upcoming', 'registration_open', 'full'], ongoing: ['ongoing'], completed: ['completed'] };
+    const shown = rows.filter((r) => GROUP[tab].includes(r.tournaments.status));
+    const tabs = ['upcoming', 'ongoing', 'completed'].map((k) => `<button type="button" data-tab="${k}" class="${tab === k ? 'on' : ''}">${k.charAt(0).toUpperCase() + k.slice(1)}</button>`).join('');
+    const body = shown.length
+      ? shown.map((r) => `<button type="button" class="mt-card" data-match="${esc(r.tournaments.id)}">${cdHtml(r.tournaments)}
+          <h3>${esc(r.tournaments.title)}</h3>
+          <div class="meta">${esc(catName(r.tournaments.category_id))} &middot; ${esc(MODE_NAME[r.tournaments.mode] || '')} &middot; ${esc(fmtDate(r.tournaments.starts_at))}</div>
+          <div class="meta">Aapka slot: Team ${esc(r.team_no == null ? '-' : r.team_no)}, Slot ${esc(r.slot_no == null ? '-' : r.slot_no)}</div></button>`).join('')
+      : `<div class="empty"><b>Koi match nahi</b>Is section me abhi koi joined match nahi hai.</div>`;
+    $app.innerHTML = `<div class="screen">
+      ${subHeader('MY CONTESTS', balance)}
+      <div class="mt-tabs">${tabs}</div>
+      ${body}
+      ${navHtml('home')}
+    </div>`;
+    $app.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => go('/contests/' + b.getAttribute('data-tab'))));
+    $app.querySelectorAll('[data-match]').forEach((b) => b.addEventListener('click', () => go('/match/' + b.getAttribute('data-match'))));
+    startCd();
     M.enter();
   }
 
