@@ -45,6 +45,7 @@ app.use('/api/admin/games', require('./routes/admin-games'));
 app.use('/api/admin/tournaments', require('./routes/admin-tournaments'));
 app.use('/api/admin/manage', require('./routes/admin-manage'));
 app.use('/api/payments', payments);
+app.use('/api/earn', require('./routes/earn'));
 app.use('/api', require('./routes/tournaments'));
 
 app.use(express.static(path.join(__dirname, 'public')));
