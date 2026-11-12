@@ -306,6 +306,7 @@
       <div class="field"><label for="af">Amount (${R})</label>
         <input id="af" type="number" inputmode="numeric" min="${AF_MIN}" max="${AF_MAX}" placeholder="Amount likho"></div>
       <div class="amts">${[50, 100, 200, 500].map((a) => `<button type="button" class="amt" data-a="${a}">${R}${a}</button>`).join('')}</div>
+      <div class="field"><label for="afp">Mobile number</label><input id="afp" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10 digit number"></div>
       <div class="err" id="afe"></div>
       <button class="btn" type="button" id="afgo">Proceed to Pay</button>
       <p class="note">Min ${R}${AF_MIN}, max ${R}${AF_MAX}. Deposit balance se match join hota hai; withdraw sirf Winnings se hota hai.</p>`);
@@ -314,6 +315,7 @@
     s.el.querySelector('#afgo').addEventListener('click', () => {
       const a = Number(inp.value);
       if (!Number.isFinite(a) || a < AF_MIN || a > AF_MAX) { err.textContent = `Amount ${R}${AF_MIN} se ${R}${AF_MAX} ke beech do`; return; }
+      if (!/^[6-9]\d{9}$/.test(s.el.querySelector('#afp').value.trim())) { err.textContent = 'Sahi 10 digit mobile number likho'; return; }
       s.close();
       toast('Payment gateway Phase 3 me judega (abhi sirf design)');
     });
@@ -325,10 +327,11 @@
       <div class="field"><label for="wa">Amount (${R})</label>
         <input id="wa" type="number" inputmode="numeric" min="${WD_MIN}" placeholder="Min ${R}${WD_MIN}"></div>
       <div class="fee" id="fee">Fee ${WD_FEE_PCT}%: ${R}0 &middot; Aapko milega: ${R}0</div>
+      <div class="field"><label for="wn">Account holder name</label><input id="wn" type="text" autocomplete="off"></div>
+      <div class="field"><label for="wp">Mobile number</label><input id="wp" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10 digit number"></div>
       <div class="seg"><button type="button" class="on" data-m="upi">UPI</button><button type="button" data-m="bank">Bank</button></div>
       <div id="m-upi"><div class="field"><label for="upi">UPI ID</label><input id="upi" type="text" autocomplete="off" placeholder="name@bank"></div></div>
       <div id="m-bank" hidden>
-        <div class="field"><label for="bn">Account holder name</label><input id="bn" type="text" autocomplete="off"></div>
         <div class="field"><label for="ba">Account number</label><input id="ba" type="text" inputmode="numeric" autocomplete="off"></div>
         <div class="field"><label for="bi">IFSC</label><input id="bi" type="text" autocomplete="off" maxlength="11"></div>
       </div>
@@ -355,10 +358,11 @@
       const e = $('#wde');
       if (!Number.isFinite(a) || a < WD_MIN) { e.textContent = `Minimum withdrawal ${R}${WD_MIN} hai`; return; }
       if (a > Number(winnings)) { e.textContent = 'Winnings balance se zyada withdraw nahi ho sakta'; return; }
+      if ($('#wn').value.trim().length < 3) { e.textContent = 'Account holder name likho'; return; }
+      if (!/^[6-9]\d{9}$/.test($('#wp').value.trim())) { e.textContent = 'Sahi 10 digit mobile number likho'; return; }
       if (method === 'upi') {
         if (!/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test($('#upi').value.trim())) { e.textContent = 'Sahi UPI ID likho (name@bank)'; return; }
       } else {
-        if ($('#bn').value.trim().length < 3) { e.textContent = 'Account holder name likho'; return; }
         if (!/^\d{9,18}$/.test($('#ba').value.trim())) { e.textContent = 'Account number 9-18 digits ka hona chahiye'; return; }
         if (!/^[A-Za-z]{4}0[A-Za-z0-9]{6}$/.test($('#bi').value.trim())) { e.textContent = 'Sahi IFSC likho'; return; }
       }
