@@ -59,17 +59,100 @@
 
   function showDash(admin) {
     root.innerHTML =
-      '<div class="a-wrap"><div class="top"><div><h1>Welcome, ' + esc(admin.name) + '</h1>' +
+      '<div class="a-wrap wide"><div class="top"><div><h1>Welcome, ' + esc(admin.name) + '</h1>' +
       '<span class="pill">' + esc(admin.role) + '</span></div>' +
       '<button class="btn ghost" id="a-logout">Logout</button></div>' +
-      '<div class="a-card"><h1>Admin panel</h1><p class="sub">Login kaam kar raha hai. Ye cheezein agle steps me judengi:</p>' +
-      '<ul class="todo"><li>Games add/edit</li><li>Tournaments add/edit</li><li>Room ID/password publish</li><li>Deposits aur users list</li></ul></div></div>';
+      '<div class="a-card" id="games-form"></div>' +
+      '<div class="a-card"><h2>Games</h2><div id="games-list"><div class="empty">Loading...</div></div></div></div>';
     document.getElementById('a-logout').addEventListener('click', async () => {
       try { await call('POST', '/api/admin/logout'); } catch (e) { /* ignore */ }
       toast('Logged out');
       showLogin();
     });
+    initGames();
   }
+
+  // ---------- Games ----------
+  let games = [];
+  let editing = null; // game object ya null
+
+  function renderForm() {
+    const g = editing || { name: '', slug: '', category: '', image_url: '', sort_order: 0, is_active: true };
+    const box = document.getElementById('games-form');
+    box.innerHTML =
+      '<h2>' + (editing ? 'Edit game' : 'Add game') + '</h2>' +
+      '<div class="grid2"><div><label for="g-name">Name</label><input id="g-name" maxlength="60" value="' + esc(g.name) + '"></div>' +
+      '<div><label for="g-cat">Category</label><input id="g-cat" maxlength="40" placeholder="Battle Royale, MOBA..." value="' + esc(g.category) + '"></div>' +
+      '<div><label for="g-slug">Slug (khali chhodo to auto)</label><input id="g-slug" maxlength="60" value="' + esc(g.slug) + '"></div>' +
+      '<div><label for="g-sort">Sort order</label><input id="g-sort" type="number" min="0" max="9999" value="' + esc(g.sort_order) + '"></div></div>' +
+      '<label for="g-img">Image URL (https://)</label><input id="g-img" maxlength="500" value="' + esc(g.image_url) + '">' +
+      '<label for="g-active">Status</label><select id="g-active"><option value="1"' + (g.is_active ? ' selected' : '') + '>Active (users ko dikhega)</option><option value="0"' + (g.is_active ? '' : ' selected') + '>Hidden</option></select>' +
+      '<div class="err" id="g-err"></div>' +
+      '<button class="btn" id="g-save">' + (editing ? 'Save changes' : 'Add game') + '</button>' +
+      (editing ? '<button class="btn ghost" id="g-cancel" style="margin-top:10px;width:100%">Cancel</button>' : '');
+    document.getElementById('g-save').addEventListener('click', saveGame);
+    const c = document.getElementById('g-cancel');
+    if (c) c.addEventListener('click', () => { editing = null; renderForm(); });
+  }
+
+  async function saveGame() {
+    const err = document.getElementById('g-err');
+    const btn = document.getElementById('g-save');
+    err.textContent = '';
+    const payload = {
+      name: document.getElementById('g-name').value.trim(),
+      category: document.getElementById('g-cat').value.trim(),
+      image_url: document.getElementById('g-img').value.trim(),
+      sort_order: parseInt(document.getElementById('g-sort').value, 10) || 0,
+      is_active: document.getElementById('g-active').value === '1',
+    };
+    const slug = document.getElementById('g-slug').value.trim();
+    if (slug) payload.slug = slug;
+    btn.disabled = true;
+    try {
+      if (editing) await call('PATCH', '/api/admin/games/' + editing.id, payload);
+      else await call('POST', '/api/admin/games', payload);
+      toast(editing ? 'Saved' : 'Game added');
+      editing = null;
+      renderForm();
+      await loadGames();
+    } catch (e) {
+      err.textContent = e.message;
+      btn.disabled = false;
+    }
+  }
+
+  function renderList() {
+    const box = document.getElementById('games-list');
+    if (!games.length) { box.innerHTML = '<div class="empty">Abhi koi game nahi. Upar form se pehla game add karo.</div>'; return; }
+    box.innerHTML = games.map((g) =>
+      '<div class="row">' +
+      (g.image_url ? '<img class="thumb" src="' + esc(g.image_url) + '" alt="" referrerpolicy="no-referrer">' : '<div class="thumb"></div>') +
+      '<div class="info"><b>' + esc(g.name) + '</b><span>' + esc(g.category || 'No category') + ' | /' + esc(g.slug) + ' | order ' + esc(g.sort_order) + '</span></div>' +
+      '<span class="pill' + (g.is_active ? '' : ' off') + '">' + (g.is_active ? 'Active' : 'Hidden') + '</span>' +
+      '<button class="btn ghost small" data-edit="' + esc(g.id) + '">Edit</button>' +
+      '<button class="btn ghost small" data-toggle="' + esc(g.id) + '">' + (g.is_active ? 'Hide' : 'Show') + '</button></div>'
+    ).join('');
+    box.querySelectorAll('[data-edit]').forEach((b) => b.addEventListener('click', () => {
+      editing = games.find((x) => x.id === b.getAttribute('data-edit')) || null;
+      renderForm();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }));
+    box.querySelectorAll('[data-toggle]').forEach((b) => b.addEventListener('click', async () => {
+      const g = games.find((x) => x.id === b.getAttribute('data-toggle'));
+      if (!g) return;
+      b.disabled = true;
+      try { await call('PATCH', '/api/admin/games/' + g.id, { is_active: !g.is_active }); await loadGames(); }
+      catch (e) { toast(e.message); b.disabled = false; }
+    }));
+  }
+
+  async function loadGames() {
+    try { games = (await call('GET', '/api/admin/games')).games || []; renderList(); }
+    catch (e) { document.getElementById('games-list').innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+  }
+
+  function initGames() { editing = null; renderForm(); loadGames(); }
 
   call('GET', '/api/admin/me').then((out) => showDash(out.admin)).catch(showLogin);
 })();
