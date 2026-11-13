@@ -9,13 +9,13 @@
 <link rel="icon" href="nox-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Hind:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Barlow:wght@400;500;600&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#0c0806;--ink2:#17100b;--line:#3a2616;--cream:#fff0cf;--mute:#b9a48b;--gold:#ffd36b;--amber:#ff8a1f;--red:#e5391a;--bevel:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px)}
 *{box-sizing:border-box;margin:0}
 html{scroll-behavior:smooth}
-body{background:var(--ink);color:var(--cream);font:400 17px/1.6 Hind,system-ui,sans-serif;overflow-x:hidden}
-h1,h2,h3,.btn,.brand{font-family:"Chakra Petch",sans-serif;line-height:1.08}
+body{background:var(--ink);color:var(--cream);font:400 17px/1.6 Barlow,system-ui,sans-serif;overflow-x:hidden}
+h1,h2,h3,.btn,.brand{font-family:"Big Shoulders Display","Chakra Petch",sans-serif;line-height:1.02}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 #embers{position:fixed;inset:0;z-index:0;pointer-events:none}
@@ -24,13 +24,13 @@ a{color:inherit}
 nav{position:sticky;top:0;z-index:8;border-bottom:1px solid transparent;transition:.3s}
 nav.on{background:rgba(12,8,6,.88);backdrop-filter:blur(10px);border-color:var(--line)}
 nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;text-decoration:none}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:26px;letter-spacing:.03em;text-decoration:none}
 .brand img{width:34px;height:34px;border-radius:8px}
-.btn{display:inline-block;text-decoration:none;font-weight:700;font-size:18px;padding:16px 34px;color:#1a0b02;background:linear-gradient(100deg,var(--gold),var(--amber) 55%,var(--red));clip-path:var(--bevel);position:relative;overflow:hidden;transform:translate(var(--mx,0),var(--my,0));transition:transform .15s,filter .2s}
+.btn{display:inline-block;text-decoration:none;font-weight:800;font-size:21px;letter-spacing:.05em;text-transform:uppercase;padding:16px 34px;color:#1a0b02;background:linear-gradient(100deg,var(--gold),var(--amber) 55%,var(--red));clip-path:var(--bevel);position:relative;overflow:hidden;transform:translate(var(--mx,0),var(--my,0));transition:transform .15s,filter .2s}
 .btn:hover{filter:brightness(1.12)}
 .btn::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.6) 50%,transparent 65%);transform:translateX(-120%)}
 .btn:hover::after{transform:translateX(120%);transition:transform .7s}
-.btn.sm{font-size:15px;padding:10px 20px}
+.btn.sm{font-size:17px;padding:10px 20px}
 .btn.ghost{background:none;color:var(--cream);box-shadow:inset 0 0 0 2px var(--line);clip-path:none}
 /* wipe reveal: diagonal like the logo slant */
 .wipe{clip-path:polygon(0 0,0 0,-14% 100%,0 100%);opacity:.2;transition:clip-path .9s cubic-bezier(.2,.8,.2,1),opacity .9s}
@@ -39,18 +39,18 @@ nav .wrap{display:flex;align-items:center;justify-content:space-between;height:6
 .hero{position:relative;min-height:calc(100svh - 64px);display:flex;align-items:center;padding:30px 0 70px;overflow:hidden}
 .hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:30px;align-items:center;width:100%}
 .bgn{position:absolute;right:-4%;top:6%;display:flex;gap:3vw;height:90%;pointer-events:none;opacity:.2}
-.bgn i{display:block;width:9vw;max-width:130px;background:linear-gradient(var(--gold),var(--red));transform:skewX(-14deg) translateY(-120%);animation:drop 1.1s cubic-bezier(.2,.9,.3,1.1) forwards}
-.bgn i:nth-child(2){width:20vw;max-width:300px;animation-delay:.15s}.bgn i:nth-child(3){animation-delay:.3s}
+.bgn i{display:block;width:9vw;max-width:130px;background:linear-gradient(var(--gold),var(--red));transform:skewX(-14deg) translateY(-120%);animation:drop 1.1s .9s cubic-bezier(.2,.9,.3,1.1) forwards}
+.bgn i:nth-child(2){width:20vw;max-width:300px;animation-delay:1.05s}.bgn i:nth-child(3){animation-delay:1.2s}
 @keyframes drop{to{transform:skewX(-14deg)}}
-h1{font-size:clamp(44px,7.4vw,96px);font-weight:700;letter-spacing:-.015em}
+h1{font-size:clamp(54px,9.4vw,136px);font-weight:900;letter-spacing:.005em;line-height:.92;text-transform:uppercase}
 h1 .w{display:inline-block;white-space:nowrap;margin-right:.22em}
-h1 .c{display:inline-block;transform:translateY(120%) rotate(10deg);opacity:0;animation:up .8s cubic-bezier(.2,.9,.2,1) forwards,wave 5s ease-in-out infinite;animation-delay:calc(var(--i)*38ms + .3s),calc(var(--i)*90ms + 2s)}
+h1 .c{display:inline-block;transform:translateY(120%) rotate(10deg);opacity:0;animation:up .8s cubic-bezier(.2,.9,.2,1) forwards,wave 5s ease-in-out infinite;animation-delay:calc(var(--i)*38ms + 1.15s),calc(var(--i)*90ms + 3s)}
 @keyframes up{to{transform:none;opacity:1}}
 @keyframes wave{40%{color:var(--gold);text-shadow:0 0 26px rgba(255,138,31,.7)}}
-.lead{max-width:30em;margin:22px 0 32px;color:var(--mute);font-size:19px;opacity:0;animation:fade .8s 1.2s forwards}
-.cta{display:flex;flex-wrap:wrap;gap:14px;opacity:0;animation:fade .8s 1.4s forwards}
+.lead{max-width:30em;margin:22px 0 32px;color:var(--mute);font-size:19px;opacity:0;animation:fade .8s 2s forwards}
+.cta{display:flex;flex-wrap:wrap;gap:14px;opacity:0;animation:fade .8s 2.2s forwards}
 @keyframes fade{to{opacity:1}}
-.note{margin-top:16px;font-size:14px;color:var(--mute);opacity:0;animation:fade .8s 1.6s forwards}
+.note{margin-top:16px;font-size:14px;color:var(--mute);opacity:0;animation:fade .8s 2.4s forwards}
 .hint{position:absolute;left:50%;bottom:18px;width:2px;height:38px;background:linear-gradient(var(--amber),transparent);animation:hint 1.6s infinite}
 @keyframes hint{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 /* phone */
@@ -84,17 +84,17 @@ h1 .c{display:inline-block;transform:translateY(120%) rotate(10deg);opacity:0;an
 .tape{border-block:1px solid var(--line);background:var(--ink2);overflow:hidden;position:relative;z-index:1}
 .tape .sk{width:max-content}
 .tape .in{display:flex;width:max-content;animation:scroll 30s linear infinite}
-.tape span{white-space:nowrap;padding:14px 26px;font:600 22px "Chakra Petch";color:var(--mute)}
+.tape span{white-space:nowrap;padding:14px 26px;font:800 30px "Big Shoulders Display";letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
 .tape span:nth-child(3n+1){color:var(--gold)}
 @keyframes scroll{to{transform:translateX(-50%)}}
 section{padding:90px 0;position:relative;z-index:1}
-h2{font-size:clamp(32px,4.6vw,54px);max-width:13em;margin-bottom:14px}
+h2{font-size:clamp(40px,6vw,80px);font-weight:900;text-transform:uppercase;max-width:11em;margin-bottom:14px}
 .sub{color:var(--mute);max-width:34em}
 /* story */
 .story{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:20px}
 .beat{min-height:72vh;display:flex;flex-direction:column;justify-content:center;opacity:.28;transition:opacity .4s,transform .4s;transform:translateX(-14px);border-left:3px solid var(--line);padding-left:26px}
 .beat.on{opacity:1;transform:none;border-color:var(--amber)}
-.beat h3{font-size:clamp(26px,3.4vw,38px);margin-bottom:10px}
+.beat h3{font-size:clamp(34px,4.4vw,56px);font-weight:800;text-transform:uppercase;margin-bottom:10px}
 .beat p{color:var(--mute);max-width:26em}
 .pin{position:sticky;top:90px;align-self:start;height:600px;display:flex;justify-content:center;align-items:flex-start}
 /* timeline */
@@ -108,7 +108,7 @@ h2{font-size:clamp(32px,4.6vw,54px);max-width:13em;margin-bottom:14px}
 .st::before{counter-increment:s;content:counter(s);position:absolute;left:-64px;top:0;width:42px;height:42px;display:grid;place-items:center;font:700 20px "Chakra Petch";background:var(--line);color:var(--cream);transform:skewX(-14deg);transition:.4s}
 .tl{counter-reset:s}
 .st.on::before{background:linear-gradient(var(--gold),var(--amber));color:#1a0b02;box-shadow:0 0 24px rgba(255,138,31,.55)}
-.st h3{font-size:26px;margin-bottom:4px}.st p{color:var(--mute);max-width:30em}
+.st h3{font-size:34px;font-weight:800;text-transform:uppercase;margin-bottom:4px}.st p{color:var(--mute);max-width:30em}
 .final{text-align:center;padding:110px 0}
 .final h2,.final .sub{margin-inline:auto}
 .final .btn{margin-top:30px;animation:ring 2.4s infinite}
@@ -135,9 +135,38 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .beat{min-height:56vh;padding-left:18px}
 }
 @media(prefers-reduced-motion:reduce){.tape .in,.fl,.final .btn{animation:none}.tape{overflow-x:auto}}
+
+/* v3 extras */
+#pre{position:fixed;inset:0;z-index:99;background:var(--ink);display:grid;place-items:center;pointer-events:none;clip-path:polygon(0 0,114% 0,100% 100%,-14% 100%);animation:preout .75s .95s cubic-bezier(.7,0,.2,1) forwards}
+@keyframes preout{to{clip-path:polygon(114% 0,114% 0,114% 100%,114% 100%);visibility:hidden}}
+.pb{display:flex;gap:10px;height:110px;align-items:flex-end}
+.pb i{display:block;width:30px;height:100%;transform:skewX(-14deg) scaleY(0);transform-origin:bottom;background:linear-gradient(var(--gold),var(--amber));animation:grow .5s cubic-bezier(.2,.9,.3,1.2) forwards}
+.pb i:nth-child(2){width:90px;background:linear-gradient(120deg,var(--amber),var(--red));animation-delay:.12s}.pb i:nth-child(3){animation-delay:.24s}
+@keyframes grow{to{transform:skewX(-14deg) scaleY(1)}}
+#pn{position:absolute;bottom:14vh;font:800 44px "Big Shoulders Display";color:var(--mute);letter-spacing:.1em}
+#cur{position:fixed;left:0;top:0;width:34px;height:34px;border:2px solid var(--amber);border-radius:50%;pointer-events:none;z-index:98;opacity:0;transform:translate(-50%,-50%);transition:width .2s,height .2s,background .2s,opacity .3s;mix-blend-mode:screen}
+body.hc #cur{opacity:1}
+#cur.hov{width:70px;height:70px;background:rgba(255,138,31,.22)}
+.sp{position:fixed;width:5px;height:16px;background:linear-gradient(var(--gold),var(--red));pointer-events:none;z-index:97;transform:translate(-50%,-50%) rotate(var(--a));animation:spark .75s ease-out forwards}
+@keyframes spark{to{transform:translate(-50%,-50%) rotate(var(--a)) translateY(var(--d));opacity:0}}
+h1.gl{animation:glh .36s steps(3)}
+@keyframes glh{33%{transform:translate(-5px,2px);filter:drop-shadow(5px 0 var(--red)) drop-shadow(-5px 0 var(--gold))}66%{transform:translate(5px,-2px);filter:drop-shadow(-5px 0 var(--red)) drop-shadow(5px 0 var(--gold))}}
+.screen::after{content:"";position:absolute;left:0;right:0;height:70px;top:-70px;background:linear-gradient(transparent,rgba(255,138,31,.2),transparent);animation:scan 4.5s linear infinite;pointer-events:none;z-index:4}
+@keyframes scan{to{top:100%}}
+.big{overflow:hidden;padding:26px 0;position:relative;z-index:1}
+.big div{width:max-content;font:900 clamp(80px,17vw,240px)/1 "Big Shoulders Display";white-space:nowrap;text-transform:uppercase;will-change:transform}
+.big .o{color:transparent;-webkit-text-stroke:2px var(--amber)}
+.big .f{color:#1d130b;margin-top:-.12em}
+.final{overflow:hidden}
+.final::before{content:"";position:absolute;left:-20%;right:-20%;bottom:0;height:65%;background:linear-gradient(var(--line) 1px,transparent 1px) 0 0/100% 48px,linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/64px 100%;transform:perspective(420px) rotateX(62deg);transform-origin:bottom;opacity:.55;animation:gridm 3s linear infinite;-webkit-mask-image:linear-gradient(transparent,#000);mask-image:linear-gradient(transparent,#000)}
+@keyframes gridm{to{background-position:0 48px,0 0}}
+@media(prefers-reduced-motion:reduce){.final::before,.screen::after{animation:none}}
+@media(max-width:860px){#cur{display:none}.big div{font-size:30vw}}
 </style>
 </head>
 <body>
+<div id="pre" aria-hidden="true"><div class="pb"><i></i><i></i><i></i></div><b id="pn">0</b></div>
+<div id="cur" aria-hidden="true"></div>
 <div id="bar"></div>
 <canvas id="embers" aria-hidden="true"></canvas>
 <nav id="nav"><div class="wrap">
@@ -171,6 +200,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
 </header>
 
 <div class="tape" aria-hidden="true"><div class="sk" id="sk"><div class="in" id="tape"></div></div></div>
+
+<div class="big" aria-hidden="true"><div class="o" id="b1">Play. Win. Repeat. Play. Win. Repeat.</div><div class="f" id="b2">Slots. Rooms. Prizes. Slots. Rooms. Prizes.</div></div>
 
 <section id="story"><div class="wrap">
   <h2 class="wipe">Everything a match needs, in one app.</h2>
@@ -243,7 +274,7 @@ var io=new IntersectionObserver(function(e){e.forEach(function(n){if(n.isInterse
 $$('.wipe').forEach(function(n){io.observe(n)});
 // story: beat <-> phone screen
 var beats=$$('.beat'),scrs=$$('#sp .scr');
-function show(n){beats.forEach(function(b,j){b.classList.toggle('on',j==n)});scrs.forEach(function(c,j){c.classList.toggle('on',j==n)})}
+function show(n){beats.forEach(function(b,j){b.classList.toggle('on',j==n)});scrs.forEach(function(c,j){c.classList.toggle('on',j==n)});var hh=$('h3',beats[n]);if(hh&&!rm)scramble(hh)}
 show(0);
 var bo=new IntersectionObserver(function(e){e.forEach(function(n){if(n.isIntersecting)show(+n.target.dataset.s)})},{rootMargin:'-45% 0px -45% 0px'});
 beats.forEach(function(b){bo.observe(b)});
@@ -280,6 +311,32 @@ if(!rm){
     P.forEach(function(p){p.y-=p.v+Math.abs(vel)*.12;p.d+=.01;p.x+=Math.sin(p.d)*.3;if(p.y<-10){p.y=H+10;p.x=Math.random()*W}
       c.beginPath();c.arc(p.x,p.y,p.r,0,6.28);c.fillStyle='rgba(255,'+(130+p.r*30|0)+',40,'+(.15+p.r*.12)+')';c.fill()});
     requestAnimationFrame(loop)})();
+}
+
+// v3 extras
+function scramble(el){var t=el.dataset.t||(el.dataset.t=el.textContent),n=0,A='ABCDEFGHJKLMNPQRSTUVWXYZ0123456789#%';clearInterval(el._t);
+  el._t=setInterval(function(){el.textContent=t.split('').map(function(c,i){return c===' '||i<n?c:A[Math.random()*A.length|0]}).join('');n+=1.3;if(n>=t.length){el.textContent=t;clearInterval(el._t)}},28)}
+// preloader counter
+var pn=$('#pn'),t0=performance.now();(function cnt(){var p=Math.min(1,(performance.now()-t0)/900);pn.textContent=Math.round(p*100);if(p<1)requestAnimationFrame(cnt)})();
+// title glitch every few seconds
+setInterval(function(){h.classList.add('gl');setTimeout(function(){h.classList.remove('gl')},380)},4800);
+// scroll-driven big text rows
+var b1=$('#b1'),b2=$('#b2');
+(function bigf(){var r=b1.parentNode.getBoundingClientRect(),m=r.top-innerHeight*.5;
+  b1.style.transform='translateX('+(m*.55)+'px)';b2.style.transform='translateX('+(-m*.55-900)+'px)';requestAnimationFrame(bigf)})();
+// sparks on button click
+document.addEventListener('pointerdown',function(e){
+  if(!e.target.closest('.btn'))return;
+  for(var i=0;i<14;i++){var s=document.createElement('span');s.className='sp';
+    s.style.left=e.clientX+'px';s.style.top=e.clientY+'px';s.style.setProperty('--a',(i*25.7)+'deg');s.style.setProperty('--d',(-50-Math.random()*60)+'px');
+    document.body.appendChild(s);setTimeout(function(n){n.remove()},800,s)}
+});
+// custom cursor ring
+if(matchMedia('(pointer:fine)').matches){
+  var cu=$('#cur'),cx=0,cy=0,tx=0,ty=0;document.body.classList.add('hc');
+  addEventListener('pointermove',function(e){tx=e.clientX;ty=e.clientY});
+  (function cl(){cx+=(tx-cx)*.2;cy+=(ty-cy)*.2;cu.style.left=cx+'px';cu.style.top=cy+'px';requestAnimationFrame(cl)})();
+  document.addEventListener('pointerover',function(e){cu.classList.toggle('hov',!!e.target.closest('a,button,summary'))});
 }
 })();
 </script>
