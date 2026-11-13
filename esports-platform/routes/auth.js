@@ -68,7 +68,7 @@ router.post('/forgot-password', limiter, async (req, res) => {
     if (u) {
       const token = crypto.randomBytes(32).toString('hex');
       await db.from('password_resets').insert({ user_id: u.id, token_hash: sha(token), expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() });
-      const link = `${process.env.APP_URL}/reset-password?token=${token}`;
+      const link = `${process.env.APP_URL}/#/reset?token=${token}`;
       sendMail(u.email, 'Reset your password', `<p>Reset link (30 min valid): <a href="${link}">${link}</a></p>`).catch(console.error);
     }
   }

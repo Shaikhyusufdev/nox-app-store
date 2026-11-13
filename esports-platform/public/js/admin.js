@@ -65,7 +65,7 @@
       '<span class="pill">' + esc(admin.role) + '</span></div>' +
       '<button class="btn ghost" id="a-logout">Logout</button></div>' +
       '<div id="a-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>' +
-      '<div id="sec-dash"></div><div id="sec-users" hidden></div><div id="sec-deps" hidden></div>' +
+      '<div id="sec-dash"></div><div id="sec-users" hidden></div><div id="sec-deps" hidden></div><div id="sec-support" hidden></div>' +
       '<div id="sec-matches" hidden>' +
       '<div class="a-card" id="games-form"></div>' +
       '<div class="a-card"><h2>Games</h2><div id="games-list"><div class="empty">Loading...</div></div></div>' +
@@ -545,7 +545,7 @@
   }
 
   // ---------- Tabs, Dashboard, Users, Deposits ----------
-  const TAB_DEFS = [['dash', 'Dashboard'], ['users', 'Users'], ['deps', 'Deposits'], ['matches', 'Matches']];
+    const TAB_DEFS = [['dash', 'Dashboard'], ['users', 'Users'], ['deps', 'Deposits'], ['support', 'Support'], ['matches', 'Matches']];
   let tabLoaded = {};
   const inr = (n) => 'Rs ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
   const pill = (txt, off) => '<span class="pill' + (off ? ' off' : '') + '">' + esc(txt) + '</span>';
@@ -558,6 +558,7 @@
     if (key === 'dash') loadDash();
     if (key === 'users' && !tabLoaded.users) { tabLoaded.users = true; loadUsers(1); }
     if (key === 'deps' && !tabLoaded.deps) { tabLoaded.deps = true; loadDeposits(1); }
+        if (key === 'support') loadSupport(1);
   }
 
   function modal(inner) {
@@ -644,6 +645,7 @@
     const tx = d.transactions || [];
     const canBlock = adminRole === 'super_admin' || adminRole === 'admin';
     const canAdj = adminRole === 'super_admin';
+        const canDel = adminRole === 'super_admin';
     const txHtml = tx.length ? tx.map((t) =>
       '<div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:4px 0"><span>' + esc(t.type) + ' (' + esc(t.balance_type) + ')' + (t.note ? ' - ' + esc(t.note) : '') + '</span><b>' + (t.direction === 'credit' ? '+' : '-') + inr(t.amount) + '</b></div>').join('')
       : '<div class="empty">Koi transaction nahi</div>';
@@ -653,6 +655,7 @@
       '<div style="font-size:14px;line-height:1.8">Deposit: <b>' + inr(u.deposit_balance) + '</b> | Winnings: <b>' + inr(u.winnings_balance) + '</b> | Bonus: <b>' + inr(u.bonus_balance) + '</b><br>' +
       'Matches: <b>' + esc(u.total_matches) + '</b> | Wins: <b>' + esc(u.total_wins) + '</b> | Earnings: <b>' + inr(u.total_earnings) + '</b> | Referral code: <b>' + esc(u.referral_code) + '</b></div>' +
       (canBlock ? '<button class="btn ghost" id="m-block" style="margin-top:12px;width:100%">' + (u.status === 'active' ? 'Block user' : 'Unblock user') + '</button>' : '') +
+            (canDel && String(u.email).indexOf('@deleted.invalid') === -1 ? '<button class="btn ghost" id="m-del" style="margin-top:10px;width:100%;color:#ff4d6a;border-color:#ff4d6a">Delete user permanently</button>' : '') +
       (canAdj ?
         '<h2 style="margin-top:16px">Balance adjust</h2>' +
         '<div class="grid2"><div><label for="m-bt">Balance</label><select id="m-bt"><option value="deposit">Deposit</option><option value="winnings">Winnings</option><option value="bonus">Bonus</option></select></div>' +
@@ -673,6 +676,18 @@
       try { await call('PATCH', '/api/admin/manage/users/' + id + '/status', { status: to }); toast(to === 'blocked' ? 'User blocked' : 'User unblocked'); refresh(); }
       catch (e) { toast(e.message); blockBtn.disabled = false; }
     });
+    
+        const delBtn = el.querySelector('#m-del');
+    if (delBtn) delBtn.addEventListener('click', async () => {
+      const bal = Number(u.deposit_balance || 0) + Number(u.winnings_balance || 0) + Number(u.bonus_balance || 0);
+      const typed = window.prompt('PERMANENT DELETE.\nUser ke wallet me ' + inr(bal) + ' hai.\nEmail, username aur password hat jayenge, wapas nahi aayega. Wallet history anonymous rahegi.\n\nConfirm karne ke liye username type karo: ' + u.username);
+      if (typed === null) return;
+      if (typed.trim() !== u.username) { toast('Username match nahi hua, delete nahi hua'); return; }
+      delBtn.disabled = true;
+      try { await call('DELETE', '/api/admin/user-delete/' + id); toast('User delete ho gaya'); m.close(); loadUsers(uPage); }
+      catch (e) { toast(e.message); delBtn.disabled = false; }
+    });
+
     const applyBtn = el.querySelector('#m-apply');
     if (applyBtn) applyBtn.addEventListener('click', async () => {
       const err = el.querySelector('#m-err');
@@ -690,6 +705,71 @@
       try { await call('POST', '/api/admin/manage/users/' + id + '/adjust', body); toast('Balance updated'); refresh(); }
       catch (e) { err.textContent = e.message; applyBtn.disabled = false; }
     });
+  }
+  
+    // ----- Support -----
+  let sStatus = 'open';
+  const SP_CAT = { deposit: 'Deposit', withdrawal: 'Withdrawal', match: 'Match', prize: 'Prize', account: 'Account', other: 'Other' };
+  async function loadSupport(page) {
+    const box = document.getElementById('sec-support');
+    if (!box.querySelector('#s-list')) {
+      box.innerHTML = '<div class="a-card"><h2>Support requests <span id="s-open"></span></h2>' +
+        '<label for="s-status">Status</label><select id="s-status"><option value="open">Open</option><option value="closed">Closed</option><option value="">All</option></select>' +
+        '<div id="s-list" style="margin-top:10px"></div></div>';
+      const sel = box.querySelector('#s-status');
+      sel.value = sStatus;
+      sel.addEventListener('change', (e) => { sStatus = e.target.value; loadSupport(1); });
+    }
+    const list = document.getElementById('s-list');
+    list.innerHTML = '<div class="empty">Loading...</div>';
+    try {
+      const out = await call('GET', '/api/admin/support?page=' + page + '&status=' + encodeURIComponent(sStatus));
+      const rows = out.tickets || [];
+      document.getElementById('s-open').innerHTML = pill((out.open_count || 0) + ' open', !out.open_count);
+      list.innerHTML = rows.length ? rows.map((t, i) =>
+        '<div class="row" style="flex-wrap:wrap"><div class="info"><b>' + esc(t.ticket_no) + ' - ' + esc(t.username || 'deleted user') + '</b>' +
+        '<span>' + esc(SP_CAT[t.category] || t.category) + ' | ' + esc(t.user_code) + ' | ' + esc(fmtDate(t.created_at)) + '</span></div>' +
+        pill(t.status, t.status === 'closed') +
+        '<button class="btn ghost small" data-sopen="' + i + '">' + (t.status === 'open' ? 'Reply / Close' : 'View') + '</button>' +
+        '<div style="flex-basis:100%;font-size:13px;white-space:pre-wrap;word-break:break-word;opacity:.9;margin-top:6px">' + esc(t.message) + '</div>' +
+        (t.admin_note ? '<div style="flex-basis:100%;font-size:12.5px;opacity:.75;margin-top:4px">Reply: ' + esc(t.admin_note) + '</div>' : '') +
+        '</div>').join('')
+        : '<div class="empty">Koi request nahi.</div>';
+      list.querySelectorAll('[data-sopen]').forEach((b) => b.addEventListener('click', () => openTicket(rows[Number(b.getAttribute('data-sopen'))])));
+      pager(list, out.page, out.total, out.page_size, loadSupport);
+    } catch (e) { list.innerHTML = '<div class="err">' + esc(e.message) + '</div>'; }
+  }
+
+  function openTicket(t) {
+    const isOpen = t.status === 'open';
+    const m = modal(
+      '<h2>' + esc(t.ticket_no) + ' ' + pill(t.status, !isOpen) + '</h2>' +
+      '<div style="font-size:13px;opacity:.75;margin-bottom:8px">' + esc(t.username || 'deleted user') + ' | ' + esc(t.email) + ' | ' + esc(SP_CAT[t.category] || t.category) + ' | ' + esc(fmtDate(t.created_at)) + '</div>' +
+      '<div style="font-size:14px;white-space:pre-wrap;word-break:break-word;padding:10px;border:1px solid rgba(128,128,128,.3);border-radius:10px;margin-bottom:12px">' + esc(t.message) + '</div>' +
+      '<label for="s-note">Reply (user ko dikhega, optional)</label>' +
+      '<textarea id="s-note" maxlength="500" rows="4" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(128,128,128,.4);background:inherit;color:inherit;font:inherit">' + esc(t.admin_note || '') + '</textarea>' +
+      '<div class="err" id="s-err"></div>' +
+      (isOpen
+        ? '<button class="btn" id="s-close" style="margin-top:8px">Close ticket</button>' +
+          '<button class="btn ghost" id="s-reply" style="margin-top:10px;width:100%">Sirf reply save karo (open rehne do)</button>'
+        : '<button class="btn" id="s-reopen" style="margin-top:8px">Reopen</button>') +
+      '<button class="btn ghost" id="s-x" style="margin-top:10px;width:100%">Cancel</button>');
+    const el = m.el;
+    const err = el.querySelector('#s-err');
+    el.querySelector('#s-x').addEventListener('click', m.close);
+    async function send(status, btn) {
+      err.textContent = '';
+      btn.disabled = true;
+      try {
+        await call('PATCH', '/api/admin/support/' + t.id, { status: status, note: el.querySelector('#s-note').value.trim() });
+        toast(status === 'closed' ? 'Ticket closed' : (isOpen ? 'Reply saved' : 'Ticket reopened'));
+        m.close();
+        loadSupport(1);
+      } catch (e) { err.textContent = e.message; btn.disabled = false; }
+    }
+    const c = el.querySelector('#s-close'); if (c) c.addEventListener('click', () => send('closed', c));
+    const r = el.querySelector('#s-reply'); if (r) r.addEventListener('click', () => send('open', r));
+    const o = el.querySelector('#s-reopen'); if (o) o.addEventListener('click', () => send('open', o));
   }
 
   // ----- Deposits -----

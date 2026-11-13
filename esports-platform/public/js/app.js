@@ -38,7 +38,7 @@
   };
 
   /* ---------- router ---------- */
-  const PUBLIC = ['/login', '/register'];
+    const PUBLIC = ['/login', '/register', '/forgot', '/reset'];
   const path = () => (location.hash.replace(/^#/, '') || '/').split('?')[0];
   function go(p) {
     if (location.hash === '#' + p) render();
@@ -81,10 +81,12 @@
     clearInterval(cdTimer);
     const p = path();
     if (!state.user && !PUBLIC.includes(p)) return go('/login');
-    if (state.user && PUBLIC.includes(p)) return go('/');
+    if (state.user && PUBLIC.includes(p) && p !== '/reset') return go('/');
     window.scrollTo(0, 0);
     if (p === '/login') return renderLogin();
     if (p === '/register') return renderRegister();
+    if (p === '/forgot') return renderForgot();
+    if (p === '/reset') return renderReset();
     let m;
     if ((m = p.match(/^\/game\/([0-9a-f-]{36})$/i))) return renderGame(m[1]);
     if ((m = p.match(/^\/match\/([0-9a-f-]{36})$/i))) return renderMatch(m[1]);
@@ -132,6 +134,7 @@
           <input id="email" type="email" autocomplete="email" inputmode="email" required></div>
         <div class="field"><label for="pw">Password</label>
           <input id="pw" type="password" autocomplete="current-password" required></div>
+                  <p class="alt" style="text-align:right;margin:-4px 0 8px"><a href="#/forgot">Password bhool gaye?</a></p>
         <div class="err" id="err"></div>
         <button class="btn" id="go" type="submit">Login</button>
       </form>
@@ -757,6 +760,76 @@
   }
 
   /* ---------- Wallet (Step 2) ---------- */
+    /* ---------- Forgot / Reset password ---------- */
+  function renderForgot() {
+    $app.innerHTML = authLayout(`
+      <h1>Password reset</h1>
+      <form id="f" novalidate>
+        <div class="field"><label for="email">Registered email</label>
+          <input id="email" type="email" autocomplete="email" inputmode="email" required>
+          <small>Is email par reset link bheja jayega (30 minute valid)</small></div>
+        <div class="err" id="err"></div>
+        <button class="btn" id="go" type="submit">Send reset link</button>
+      </form>
+      <p class="alt"><a href="#/login">Login par wapas jao</a></p>`);
+    const form = document.getElementById('f'), btn = document.getElementById('go'), err = document.getElementById('err');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.textContent = '';
+      const email = document.getElementById('email').value.trim();
+      if (!email) { err.textContent = 'Email likho'; return; }
+      btn.disabled = true; btn.textContent = 'Please wait...';
+      try {
+        await api.post('/auth/forgot-password', { email });
+        form.innerHTML = '<div class="empty"><b>Request mil gayi</b>Agar ye email registered hai to reset link bhej diya gaya hai. Spam folder bhi dekh lo.</div>';
+      } catch (ex) {
+        err.textContent = ex.message;
+        btn.disabled = false; btn.textContent = 'Send reset link';
+      }
+    });
+    M.enter();
+  }
+
+  function renderReset() {
+    const token = new URLSearchParams((location.hash.split('?')[1]) || '').get('token') || '';
+    if (token.length < 32) {
+      $app.innerHTML = authLayout(`<h1>Link galat hai</h1>
+        <div class="empty"><b>Reset link invalid hai</b>Dobara reset link mangwao.</div>
+        <p class="alt"><a href="#/forgot">Naya link mangwao</a></p>`);
+      M.enter();
+      return;
+    }
+    $app.innerHTML = authLayout(`
+      <h1>Naya password</h1>
+      <form id="f" novalidate>
+        <div class="field"><label for="pw">New password</label>
+          <input id="pw" type="password" autocomplete="new-password" minlength="8" required>
+          <small>Kam se kam 8 characters</small></div>
+        <div class="field"><label for="pw2">Confirm password</label>
+          <input id="pw2" type="password" autocomplete="new-password" required></div>
+        <div class="err" id="err"></div>
+        <button class="btn" id="go" type="submit">Update password</button>
+      </form>`);
+    const form = document.getElementById('f'), btn = document.getElementById('go'), err = document.getElementById('err');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      err.textContent = '';
+      const pw = document.getElementById('pw').value, pw2 = document.getElementById('pw2').value;
+      if (pw.length < 8) { err.textContent = 'Password kam se kam 8 characters ka ho'; return; }
+      if (pw !== pw2) { err.textContent = 'Dono password same nahi hain'; return; }
+      btn.disabled = true; btn.textContent = 'Please wait...';
+      try {
+        await api.post('/auth/reset-password', { token, password: pw });
+        state.user = null;
+        toast('Password update ho gaya. Ab login karo');
+        go('/login');
+      } catch (ex) {
+        err.textContent = ex.message;
+        btn.disabled = false; btn.textContent = 'Update password';
+      }
+    });
+    M.enter();
+  }
   const R = '\u20B9';
   const TX_LABEL = { deposit: 'Deposit', entry_fee: 'Entry fee', prize: 'Prize', withdrawal: 'Withdrawal', withdrawal_refund: 'Withdrawal refund', referral_bonus: 'Referral bonus', admin_adjust: 'Admin adjustment', refund: 'Refund', gift_code: 'Gift code', promo: 'Promo' };
   const BAL_LABEL = { deposit: 'Deposit', winnings: 'Winnings', bonus: 'Bonus' };
