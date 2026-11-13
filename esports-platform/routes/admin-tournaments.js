@@ -58,7 +58,7 @@ function prizes(sh, dist, pool) {
 router.use(requireAdmin, requireRole('super_admin', 'admin'));
 
 router.get('/', async (req, res) => {
-  const { data, error } = await db.from('tournaments').select('*, games(name)').order('starts_at', { ascending: false }).limit(200);
+  const { data, error } = await db.from('tournaments').select('*, games(name)').is('deleted_at', null).order('starts_at', { ascending: false }).limit(200);
   if (error) return res.status(500).json({ error: 'Could not load tournaments' });
   const ids = data.map((t) => t.id);
   const counts = {};
@@ -162,7 +162,7 @@ router.patch('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({ error: 'Invalid id' });
   const refund = req.query.refund === '1';
-  const { data: cur } = await db.from('tournaments').select('id, title').eq('id', req.params.id).maybeSingle();
+  const { data: cur } = await db.from('tournaments').select('id, title, status').eq('id', req.params.id).maybeSingle();
   if (!cur) return res.status(404).json({ error: 'Tournament not found' });
   const { count } = await db.from('tournament_participants').select('id', { count: 'exact', head: true }).eq('tournament_id', cur.id);
 
@@ -172,6 +172,14 @@ router.delete('/:id', async (req, res) => {
     if (error) { console.error(error); return res.status(500).json({ error: 'Refund failed: ' + error.message }); }
     await log(req, 'tournament_refund_delete', { id: cur.id, title: cur.title, refunded: data });
     return res.json({ ok: true, ...(data || {}) });
+  }
+
+    // completed match + players joined: soft delete (row aur participants rehte hain, joined players ki history bachti hai)
+  if (count > 0 && !refund && cur.status === 'completed') {
+    const { error: se } = await db.from('tournaments').update({ deleted_at: new Date().toISOString() }).eq('id', cur.id);
+    if (se) { console.error(se); return res.status(500).json({ error: 'Could not delete tournament: ' + se.message }); }
+    await log(req, 'tournament_soft_delete', { id: cur.id, title: cur.title, players: count });
+    return res.json({ ok: true, soft: true });
   }
 
   if (count > 0) {

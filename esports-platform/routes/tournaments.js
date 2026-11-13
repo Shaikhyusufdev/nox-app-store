@@ -36,12 +36,16 @@ router.get('/tournaments', requireUser, async (req, res) => {
 
   // completed matches: sirf wahi dikhao jisme ye user joined hai
   const doneIds = data.filter((t) => t.status === 'completed').map((t) => t.id);
+  let gone = new Set();
   let mine = new Set();
+
   if (doneIds.length) {
     const { data: mp } = await db.from('tournament_participants').select('tournament_id').eq('user_id', req.user.id).in('tournament_id', doneIds);
     mine = new Set((mp || []).map((r) => r.tournament_id));
+  const { data: dl } = await db.from('tournaments').select('id').in('id', doneIds).not('deleted_at', 'is', null);
+    gone = new Set((dl || []).map((r) => r.id));
   }
-  res.json({ tournaments: data.filter((t) => t.status !== 'completed' || mine.has(t.id)) });
+  res.json({ tournaments: data.filter((t) => t.status !== 'completed' || (mine.has(t.id) && !gone.has(t.id))) });
 });
 
 // Room ID/Password sirf: joined user + admin ne publish kiya ho
