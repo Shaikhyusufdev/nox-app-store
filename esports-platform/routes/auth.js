@@ -5,11 +5,15 @@ const { z } = require('zod');
 const rateLimit = require('express-rate-limit');
 const db = require('../lib/db');
 const { signUser, requireUser, cookieOpts } = require('../lib/auth');
-const { sendMail } = require('../lib/mailer');
+const { sendMail, brandedEmail } = require('../lib/mailer');
 
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 const WEEK = 7 * 24 * 3600 * 1000;
+const RESET_MINUTES = 30;
+const MAX_CODE_ATTEMPTS = 5;
 const sha = (s) => crypto.createHash('sha256').update(s).digest('hex');
+// code ka hash user id ke saath banta hai, taaki same code do users ka same hash na bane
+const codeHash = (userId, code) => sha(userId + ':' + code);
 
 const registerSchema = z.object({
   email: z.string().email().max(120),
@@ -66,25 +70,63 @@ router.post('/forgot-password', limiter, async (req, res) => {
   if (parsed.success) {
     const { data: u } = await db.from('users').select('id,email').eq('email', parsed.data.email.toLowerCase()).maybeSingle();
     if (u) {
-      const token = crypto.randomBytes(32).toString('hex');
-      await db.from('password_resets').insert({ user_id: u.id, token_hash: sha(token), expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString() });
-      const link = `${process.env.APP_URL}/#/reset?token=${token}`;
-      sendMail(u.email, 'Reset your password', `<p>Reset link (30 min valid): <a href="${link}">${link}</a></p>`).catch(console.error);
+      // purane unused codes band karo, sirf naya code chalega
+      await db.from('password_resets').update({ used_at: new Date().toISOString() }).eq('user_id', u.id).is('used_at', null);
+      const code = String(crypto.randomInt(100000, 1000000)); // 6 digit
+      const { error } = await db.from('password_resets').insert({
+        user_id: u.id,
+        token_hash: codeHash(u.id, code),
+        expires_at: new Date(Date.now() + RESET_MINUTES * 60 * 1000).toISOString(),
+        attempts: 0,
+      });
+      if (error) {
+        console.error(error);
+      } else {
+        // await zaroori hai: Vercel par response ke baad function ruk jata hai, bina await mail miss ho sakti hai
+        try {
+          await sendMail(u.email, 'Your NOXHUB password reset code', brandedEmail({
+            title: 'Reset your password',
+            intro: 'Use this code to reset your NOXHUB password. It is valid for ' + RESET_MINUTES + ' minutes.',
+            code,
+            note: 'Never share this code with anyone. NOXHUB will never ask for it.',
+          }));
+        } catch (e) { console.error(e); }
+      }
     }
   }
-  res.json({ message: 'If that email exists, a reset link has been sent.' });
+  res.json({ message: 'If that email exists, a reset code has been sent.' });
 });
 
 router.post('/reset-password', limiter, async (req, res) => {
-  const parsed = z.object({ token: z.string().min(32), password: z.string().min(8).max(100) }).safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'Invalid input' });
-  const { data: r } = await db.from('password_resets').select('*').eq('token_hash', sha(parsed.data.token)).is('used_at', null).gt('expires_at', new Date().toISOString()).maybeSingle();
-  if (!r) return res.status(400).json({ error: 'Link invalid or expired' });
-  const hash = await bcrypt.hash(parsed.data.password, 12);
-  const { data: u } = await db.from('users').select('token_version').eq('id', r.user_id).single();
-  await db.from('users').update({ password_hash: hash, token_version: u.token_version + 1 }).eq('id', r.user_id); // purane sessions invalid
+  const parsed = z.object({
+    email: z.string().email(),
+    code: z.string().regex(/^\d{6}$/, 'Enter the 6 digit code'),
+    password: z.string().min(8).max(100),
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.issues[0].message });
+  const { email, code, password } = parsed.data;
+  const BAD = { error: 'Code is invalid or expired. Please request a new code.' };
+
+  const { data: u } = await db.from('users').select('id,token_version').eq('email', email.toLowerCase()).maybeSingle();
+  if (!u) return res.status(400).json(BAD);
+
+  const { data: r } = await db.from('password_resets').select('*')
+    .eq('user_id', u.id).is('used_at', null).gt('expires_at', new Date().toISOString())
+    .order('expires_at', { ascending: false }).limit(1).maybeSingle();
+  if (!r || (r.attempts || 0) >= MAX_CODE_ATTEMPTS) return res.status(400).json(BAD);
+
+  const a = Buffer.from(r.token_hash, 'hex');
+  const b = Buffer.from(codeHash(u.id, code), 'hex');
+  const match = a.length === b.length && crypto.timingSafeEqual(a, b);
+  if (!match) {
+    await db.from('password_resets').update({ attempts: (r.attempts || 0) + 1 }).eq('id', r.id);
+    return res.status(400).json(BAD);
+  }
+
+  const hash = await bcrypt.hash(password, 12);
+  await db.from('users').update({ password_hash: hash, token_version: u.token_version + 1 }).eq('id', u.id); // purane sessions invalid
   await db.from('password_resets').update({ used_at: new Date().toISOString() }).eq('id', r.id);
-  res.json({ message: 'Password updated. Please login.' });
+  res.json({ message: 'Password updated. Please log in.' });
 });
 
 module.exports = router;
