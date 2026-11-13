@@ -161,13 +161,26 @@ router.patch('/:id', async (req, res) => {
 
 router.delete('/:id', async (req, res) => {
   if (!z.string().uuid().safeParse(req.params.id).success) return res.status(400).json({ error: 'Invalid id' });
+  const refund = req.query.refund === '1';
   const { data: cur } = await db.from('tournaments').select('id, title').eq('id', req.params.id).maybeSingle();
   if (!cur) return res.status(404).json({ error: 'Tournament not found' });
   const { count } = await db.from('tournament_participants').select('id', { count: 'exact', head: true }).eq('tournament_id', cur.id);
-  if (count > 0) return res.status(400).json({ error: 'Players join kar chuke hain, delete nahi ho sakta (refund feature baaki hai)' });
+
+  if (count > 0 && refund) {
+    // refund + participants delete + tournament delete, sab ek transaction me (SQL function)
+    const { data, error } = await db.rpc('refund_and_delete_tournament', { p_tournament: cur.id });
+    if (error) { console.error(error); return res.status(500).json({ error: 'Refund failed: ' + error.message }); }
+    await log(req, 'tournament_refund_delete', { id: cur.id, title: cur.title, refunded: data });
+    return res.json({ ok: true, ...(data || {}) });
+  }
+
+  if (count > 0) {
+    const { error: pe } = await db.from('tournament_participants').delete().eq('tournament_id', cur.id);
+    if (pe) { console.error(pe); return res.status(500).json({ error: 'Could not remove participants: ' + pe.message }); }
+  }
   const { error } = await db.from('tournaments').delete().eq('id', cur.id);
-  if (error) return res.status(500).json({ error: 'Could not delete tournament' });
-  await log(req, 'tournament_delete', { id: cur.id, title: cur.title });
+  if (error) { console.error(error); return res.status(500).json({ error: 'Could not delete tournament: ' + error.message }); }
+  await log(req, 'tournament_delete', { id: cur.id, title: cur.title, players: count || 0, refunded: false });
   res.json({ ok: true });
 });
 

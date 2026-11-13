@@ -26,14 +26,22 @@ router.get('/categories', async (req, res) => {
   res.json({ categories: data || [] });
 });
 
-router.get('/tournaments', async (req, res) => {
+router.get('/tournaments', requireUser, async (req, res) => {
   let q = db.from('tournament_public').select('*').neq('status', 'cancelled').order('starts_at');
   if (req.query.game && isUuid(req.query.game)) q = q.eq('game_id', req.query.game);
   if (req.query.status) q = q.eq('status', String(req.query.status));
   if (req.query.mode && ['solo', 'duo', 'squad'].includes(String(req.query.mode))) q = q.eq('mode', String(req.query.mode));
   const { data, error } = await q.limit(100);
   if (error) return res.status(500).json({ error: 'Could not load tournaments' });
-  res.json({ tournaments: data });
+
+  // completed matches: sirf wahi dikhao jisme ye user joined hai
+  const doneIds = data.filter((t) => t.status === 'completed').map((t) => t.id);
+  let mine = new Set();
+  if (doneIds.length) {
+    const { data: mp } = await db.from('tournament_participants').select('tournament_id').eq('user_id', req.user.id).in('tournament_id', doneIds);
+    mine = new Set((mp || []).map((r) => r.tournament_id));
+  }
+  res.json({ tournaments: data.filter((t) => t.status !== 'completed' || mine.has(t.id)) });
 });
 
 // Room ID/Password sirf: joined user + admin ne publish kiya ho
