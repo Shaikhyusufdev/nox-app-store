@@ -27,7 +27,8 @@ router.get('/:id/participants', requireAdmin, async (req, res) => {
 });
 
 // Result: rank -> team. Prize DB function (atomic + ek hi baar) se bantta hai.
-router.post('/:id/payout', requireRole('super_admin', 'admin'), async (req, res) => {
+router.post('/:id/payout', requireAdmin, requireRole('super_admin', 'admin'), async (req, res) => {
+  try {
   if (!okId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   const p = z.object({
     results: z.array(z.object({
@@ -59,6 +60,10 @@ router.post('/:id/payout', requireRole('super_admin', 'admin'), async (req, res)
     details: { results: p.data.results, paid_total: data && data.paid_total }, ip: req.ip,
   });
   res.json({ ok: true, result: data });
+  } catch (e) {
+    console.error('payout', e);
+    res.status(500).json({ error: 'Prize nahi mil paya, dobara try karo' });
+  }
 });
 
 module.exports = router;
