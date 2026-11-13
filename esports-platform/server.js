@@ -11,7 +11,7 @@ for (const k of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'JWT_SECRET', 'ADM
 const app = express();
 app.set('trust proxy', 1); // Vercel proxy ke peeche
 // CSP: admin jo image URL dega (game/tournament banner) wo https se load ho sake, isliye img-src me https: add kiya
-const CF = 'https://*.cashfree.com'; // Cashfree checkout SDK + payment pages
+const CF = 'https://*.cashfree.com'; // Cashfree checkout SDK + payment pagesd
 const dd = helmet.contentSecurityPolicy.getDefaultDirectives();
 const cspDirectives = {
   ...dd,
