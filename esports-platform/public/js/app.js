@@ -34,6 +34,7 @@
     bolt: svg('<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>'),
     shield: svg('<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>'),
     back: svg('<path d="m15 18-6-6 6-6"/>'),
+    crown: svg('<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>'),
   };
 
   /* ---------- router ---------- */
@@ -344,6 +345,32 @@
 .mt-copy+.mt-copy{border-top:1px solid rgba(255,255,255,.1)}
 .mt-conf{font-size:14px;line-height:1.7;margin-bottom:10px}
 .mt-conf small{color:var(--muted)}
+@keyframes rsRise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes rsShine{from{left:-40%}to{left:140%}}
+@keyframes rsPulse{50%{opacity:.9}}
+@keyframes rsFloat{0%{transform:translateY(0) rotate(45deg) scale(.6);opacity:0}20%{opacity:1}100%{transform:translateY(-130px) rotate(45deg) scale(1);opacity:0}}
+.rs-win{--c1:#38e1ff;--c2:#2a3148;position:relative;overflow:hidden;padding:14px;margin-bottom:12px;border:1px solid transparent;background:linear-gradient(var(--panel),var(--panel)) padding-box,linear-gradient(135deg,var(--c1),var(--c2)) border-box;clip-path:var(--cut);animation:rsRise .55s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--i)*140ms + 80ms)}
+.rs-win::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 0,var(--c1),transparent 60%);opacity:.16;pointer-events:none;animation:rsPulse 2.4s ease-in-out infinite}
+.rs-win::after{content:"";position:absolute;top:0;bottom:0;left:-40%;width:28%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.18),transparent);transform:skewX(-20deg);pointer-events:none;animation:rsShine 3.2s ease-in-out infinite}
+.rs-win.r1{--c1:#ffd36a;--c2:#ff8a1f}.rs-win.r1::before{opacity:.3}
+.rs-win.r2{--c1:#e6ebf5;--c2:#8d98ad}
+.rs-win.r3{--c1:#f0b88a;--c2:#cd7f32}
+.rs-top{position:relative;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.rs-medal{flex:none;width:46px;height:46px;clip-path:var(--hex);display:grid;place-items:center;font:700 18px var(--font-head);background:linear-gradient(135deg,var(--c1),var(--c2));color:#1a1204}
+.rs-medal svg{width:24px;height:24px;stroke:#3a2400;stroke-width:2}
+.rs-rank{font:700 18px var(--font-head)}
+.rs-team{font-size:12px;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.rs-amt{margin-left:auto;font:700 20px var(--font-head);color:var(--gold);text-shadow:0 0 14px rgba(255,200,61,.45)}
+.rs-p{position:relative;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.08);font-size:14px}
+.rs-p b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rs-p span{color:var(--gold);font:700 13px var(--font-head)}
+.rs-p em{font-style:normal;font:700 10px var(--font-head);color:#031a20;background:var(--ice);padding:2px 6px;margin-left:6px}
+.rs-p.me b{color:var(--ice)}
+.rs-win .sp{position:absolute;bottom:0;width:5px;height:5px;background:var(--gold);opacity:0;pointer-events:none;animation:rsFloat 2.6s ease-in infinite}
+.rs-lose{border:1px solid var(--edge);background:var(--panel2);padding:10px 12px;margin-bottom:8px;clip-path:var(--cut-sm)}
+.rs-chips{display:flex;flex-wrap:wrap;gap:6px}
+.rs-chip{padding:5px 12px;border:1px solid var(--edge);background:var(--panel2);color:var(--muted);font-size:13px;clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+.rs-chip.me{color:var(--ice);border-color:var(--ice)}
 `;
   function injectMatchCss() {
     if (document.getElementById('match-css')) return;
@@ -497,6 +524,13 @@
     const balance = await getBalance();
     if (path() !== '/match/' + id) return;
 
+    if (t.status === 'completed') {
+      let rs = null;
+      try { rs = await api.get('/results/' + id); } catch (e) { rs = null; }
+      if (path() !== '/match/' + id) return;
+      if (rs) return drawResults(t, rs, balance);
+    }
+
     const taken = {};
     (t.participants || []).forEach((p) => { taken[p.team_no + '-' + p.slot_no] = p; });
     const canJoin = !t.is_joined && JOINABLE.includes(t.status) && t.joined_count < t.max_players;
@@ -549,6 +583,46 @@
     startCd();
     M.enter();
     if (t.room) roomSheet(t.room); // joined user + admin ne room publish kiya -> popup
+  }
+
+  // Completed match: jeetne wale rank ke hisaab se (effect ke saath), neeche baaki players
+  function drawResults(t, rs, balance) {
+    const isBr = rs.layout === 'br';
+    const size = rs.team_size || 1;
+    const teams = rs.teams || [];
+    const placed = teams.filter((x) => x.placement).sort((a, b) => a.placement - b.placement);
+    const rest = teams.filter((x) => !x.placement);
+    const ordn = (n) => n + (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
+    const tname = (x) => (isBr ? (size === 1 ? '' : 'TEAM ' + x.team_no) : (x.team_no === 1 ? 'RED TEAM' : 'BLUE TEAM'));
+    const plist = (x) => x.players.map((p) => `<div class="rs-p${p.is_me ? ' me' : ''}"><b>${esc(p.username)}${p.is_me ? '<em>YOU</em>' : ''}</b>${Number(p.prize_won) > 0 ? '<span>' + money(p.prize_won) + '</span>' : ''}</div>`).join('');
+    const sparks = Array.from({ length: 7 }, (_, i) => `<i class="sp" style="left:${8 + i * 13}%;animation-delay:${(i * 0.45).toFixed(2)}s"></i>`).join('');
+    const winCard = (x, i) => {
+      const r = Math.min(x.placement, 4);
+      const label = isBr ? ordn(x.placement) + ' place' : 'Winner';
+      return `<div class="rs-win r${r}" style="--i:${i}">${r === 1 ? sparks : ''}
+        <div class="rs-top"><div class="rs-medal">${r === 1 ? ICON.crown : esc(x.placement)}</div>
+          <div><div class="rs-rank">${label}</div>${tname(x) ? '<div class="rs-team">' + tname(x) + '</div>' : ''}</div>
+          ${Number(x.prize_total) > 0 ? '<div class="rs-amt">' + money(x.prize_total) + '</div>' : ''}</div>
+        ${plist(x)}</div>`;
+    };
+    const restHtml = (isBr && size === 1)
+      ? `<div class="rs-chips">${rest.map((x) => x.players.map((p) => `<span class="rs-chip${p.is_me ? ' me' : ''}">${esc(p.username)}</span>`).join('')).join('')}</div>`
+      : rest.map((x) => `<div class="rs-lose"><div class="rs-team">${tname(x)}</div>${plist(x)}</div>`).join('');
+    $app.innerHTML = `<div class="screen">
+      ${subHeader('MATCH', balance, '#/')}
+      <div class="mt-head">
+        ${cdHtml(t)}
+        <h2>${esc(t.title)}</h2>
+        <div class="meta">${esc(t.category_name || 'Match')} &middot; ${esc(MODE_NAME[t.mode] || '')} &middot; Completed</div>
+        <div class="meta" style="margin-top:6px">Entry <b>${Number(t.entry_fee) > 0 ? money(t.entry_fee) : 'FREE'}</b> &middot; Prize pool <b>${money(t.prize_pool)}</b></div>
+      </div>
+      <div class="sec-title">Results</div>
+      ${placed.length ? placed.map(winCard).join('') : '<div class="empty"><b>Result jald aayega</b></div>'}
+      ${rest.length ? '<div class="sec-title" style="margin-top:18px">' + (isBr ? 'Other players' : 'Other team') + '</div>' + restHtml : ''}
+      ${navHtml('home')}
+    </div>`;
+    startCd();
+    M.enter();
   }
 
   function joinSlotSheet(t, team, slot, label) {
