@@ -477,14 +477,32 @@
     }));
     box.querySelectorAll('[data-tdel]').forEach((b) => b.addEventListener('click', async () => {
       const t = tournaments.find((x) => x.id === b.getAttribute('data-tdel'));
-      if (!t || !window.confirm('Delete "' + t.title + '"? Ye wapas nahi aayega.')) return;
-      b.disabled = true;
-      try {
-        await call('DELETE', '/api/admin/tournaments/' + t.id);
-        if (tEditing && tEditing.id === t.id) { tEditing = null; renderTForm(); }
-        toast('Deleted');
-        await loadTournaments();
-      } catch (e) { toast(e.message); b.disabled = false; }
+      if (!t) return;
+      const doDelete = async (refund, btnEl) => {
+        btnEl.disabled = true;
+        try {
+          const out = await call('DELETE', '/api/admin/tournaments/' + t.id + (refund ? '?refund=1' : ''));
+          if (tEditing && tEditing.id === t.id) { tEditing = null; renderTForm(); }
+          toast(refund ? 'Deleted. Refunded ' + (out.refunded_users || 0) + ' players (' + inr(out.refunded_total) + ')' : 'Deleted');
+          await loadTournaments();
+          return true;
+        } catch (e) { toast(e.message); btnEl.disabled = false; return false; }
+      };
+      if (!t.joined_count) {
+        if (!window.confirm('Delete "' + t.title + '"? This cannot be undone.')) return;
+        return doDelete(false, b);
+      }
+      const warn = t.status === 'completed'
+        ? '<div style="font-size:13px;color:#ff4d6a;margin:8px 0">This match is completed. If the prize was already paid out, refunding the entry fees means you pay twice.</div>' : '';
+      const m = modal(
+        '<h2>Delete "' + esc(t.title) + '"</h2>' +
+        '<div style="font-size:14px;margin-bottom:8px">' + esc(t.joined_count) + ' players joined. What should happen to their entry fee?</div>' + warn +
+        '<button class="btn" id="d-refund" style="margin-top:8px">Refund &amp; Delete</button>' +
+        '<button class="btn ghost" id="d-only" style="margin-top:10px;width:100%">Delete (no refund)</button>' +
+        '<button class="btn ghost" id="d-x" style="margin-top:10px;width:100%">Cancel</button>');
+      m.el.querySelector('#d-x').addEventListener('click', m.close);
+      m.el.querySelector('#d-refund').addEventListener('click', async (e) => { if (await doDelete(true, e.currentTarget)) m.close(); });
+      m.el.querySelector('#d-only').addEventListener('click', async (e) => { if (await doDelete(false, e.currentTarget)) m.close(); });
     }));
     box.querySelectorAll('[data-tedit]').forEach((b) => b.addEventListener('click', () => {
       tEditing = tournaments.find((x) => x.id === b.getAttribute('data-tedit')) || null;
@@ -545,7 +563,7 @@
   }
 
   // ---------- Tabs, Dashboard, Users, Deposits ----------
-    const TAB_DEFS = [['dash', 'Dashboard'], ['users', 'Users'], ['deps', 'Deposits'], ['support', 'Support'], ['matches', 'Matches']];
+  const TAB_DEFS = [['dash', 'Dashboard'], ['users', 'Users'], ['deps', 'Deposits'], ['support', 'Support'], ['matches', 'Matches']];
   let tabLoaded = {};
   const inr = (n) => 'Rs ' + Number(n || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
   const pill = (txt, off) => '<span class="pill' + (off ? ' off' : '') + '">' + esc(txt) + '</span>';
@@ -558,7 +576,7 @@
     if (key === 'dash') loadDash();
     if (key === 'users' && !tabLoaded.users) { tabLoaded.users = true; loadUsers(1); }
     if (key === 'deps' && !tabLoaded.deps) { tabLoaded.deps = true; loadDeposits(1); }
-        if (key === 'support') loadSupport(1);
+    if (key === 'support') loadSupport(1);
   }
 
   function modal(inner) {
@@ -645,7 +663,7 @@
     const tx = d.transactions || [];
     const canBlock = adminRole === 'super_admin' || adminRole === 'admin';
     const canAdj = adminRole === 'super_admin';
-        const canDel = adminRole === 'super_admin';
+    const canDel = adminRole === 'super_admin';
     const txHtml = tx.length ? tx.map((t) =>
       '<div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:4px 0"><span>' + esc(t.type) + ' (' + esc(t.balance_type) + ')' + (t.note ? ' - ' + esc(t.note) : '') + '</span><b>' + (t.direction === 'credit' ? '+' : '-') + inr(t.amount) + '</b></div>').join('')
       : '<div class="empty">Koi transaction nahi</div>';
@@ -655,7 +673,7 @@
       '<div style="font-size:14px;line-height:1.8">Deposit: <b>' + inr(u.deposit_balance) + '</b> | Winnings: <b>' + inr(u.winnings_balance) + '</b> | Bonus: <b>' + inr(u.bonus_balance) + '</b><br>' +
       'Matches: <b>' + esc(u.total_matches) + '</b> | Wins: <b>' + esc(u.total_wins) + '</b> | Earnings: <b>' + inr(u.total_earnings) + '</b> | Referral code: <b>' + esc(u.referral_code) + '</b></div>' +
       (canBlock ? '<button class="btn ghost" id="m-block" style="margin-top:12px;width:100%">' + (u.status === 'active' ? 'Block user' : 'Unblock user') + '</button>' : '') +
-            (canDel && String(u.email).indexOf('@deleted.invalid') === -1 ? '<button class="btn ghost" id="m-del" style="margin-top:10px;width:100%;color:#ff4d6a;border-color:#ff4d6a">Delete user permanently</button>' : '') +
+      (canDel && String(u.email).indexOf('@deleted.invalid') === -1 ? '<button class="btn ghost" id="m-del" style="margin-top:10px;width:100%;color:#ff4d6a;border-color:#ff4d6a">Delete user permanently</button>' : '') +
       (canAdj ?
         '<h2 style="margin-top:16px">Balance adjust</h2>' +
         '<div class="grid2"><div><label for="m-bt">Balance</label><select id="m-bt"><option value="deposit">Deposit</option><option value="winnings">Winnings</option><option value="bonus">Bonus</option></select></div>' +
@@ -676,8 +694,8 @@
       try { await call('PATCH', '/api/admin/manage/users/' + id + '/status', { status: to }); toast(to === 'blocked' ? 'User blocked' : 'User unblocked'); refresh(); }
       catch (e) { toast(e.message); blockBtn.disabled = false; }
     });
-    
-        const delBtn = el.querySelector('#m-del');
+
+    const delBtn = el.querySelector('#m-del');
     if (delBtn) delBtn.addEventListener('click', async () => {
       const bal = Number(u.deposit_balance || 0) + Number(u.winnings_balance || 0) + Number(u.bonus_balance || 0);
       const typed = window.prompt('PERMANENT DELETE.\nUser ke wallet me ' + inr(bal) + ' hai.\nEmail, username aur password hat jayenge, wapas nahi aayega. Wallet history anonymous rahegi.\n\nConfirm karne ke liye username type karo: ' + u.username);
@@ -706,8 +724,8 @@
       catch (e) { err.textContent = e.message; applyBtn.disabled = false; }
     });
   }
-  
-    // ----- Support -----
+
+  // ----- Support -----
   let sStatus = 'open';
   const SP_CAT = { deposit: 'Deposit', withdrawal: 'Withdrawal', match: 'Match', prize: 'Prize', account: 'Account', other: 'Other' };
   async function loadSupport(page) {
