@@ -43,6 +43,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin-auth'));
 app.use('/api/admin/manage', require('./routes/admin-manage'));
 app.use('/api/admin/support', require('./routes/admin-support'));
+app.use('/api/admin/user-delete', require('./routes/admin-user-delete'));
 app.use('/api/admin/games', require('./routes/admin-games'));
 app.use('/api/admin/tournaments', require('./routes/admin-results'));
 app.use('/api/admin/tournaments', require('./routes/admin-tournaments'));
