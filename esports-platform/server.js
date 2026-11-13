@@ -11,7 +11,7 @@ for (const k of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'JWT_SECRET', 'ADM
 const app = express();
 app.set('trust proxy', 1); // Vercel proxy ke peeche
 // CSP: admin jo image URL dega (game/tournament banner) wo https se load ho sake, isliye img-src me https: add kiya
-const CF = 'https://*.cashfree.com'; // Cashfree checkout SDK + payment pagesd
+const CF = 'https://*.cashfree.com'; // Cashfree checkout SDK + payment pages
 const dd = helmet.contentSecurityPolicy.getDefaultDirectives();
 const cspDirectives = {
   ...dd,
@@ -42,15 +42,12 @@ app.use((req, res, next) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin-auth'));
 app.use('/api/admin/manage', require('./routes/admin-manage'));
-app.use('/api/admin/support', require('./routes/admin-support'));
-app.use('/api/admin/user-delete', require('./routes/admin-user-delete'));
 app.use('/api/admin/games', require('./routes/admin-games'));
 app.use('/api/admin/tournaments', require('./routes/admin-results'));
 app.use('/api/admin/tournaments', require('./routes/admin-tournaments'));
 app.use('/api/payments', payments);
 app.use('/api/earn', require('./routes/earn'));
 app.use('/api/results', require('./routes/results'));
-app.use('/api/support', require('./routes/support'));
 app.use('/api', require('./routes/tournaments'));
 
 app.use(express.static(path.join(__dirname, 'public')));

@@ -5,35 +5,6 @@ const { requireUser } = require('../lib/auth');
 
 const uidOf = (req) => (req.user && (req.user.id || req.user.sub || req.user.userId)) || null;
 
-const RECENT_MIN = 60; // match khatam hone ke itne minute tak Home par "Just ended" dikhega (sirf joined user ko)
-
-// Joined user ke haal hi me khatam hue matches (Home ke liye)
-router.get('/recent', requireUser, async (req, res) => {
-  try {
-    const uid = uidOf(req);
-    if (!uid) return res.status(401).json({ error: 'Login karo' });
-    const { data: mine, error } = await db.from('tournament_participants').select('tournament_id,prize_won').eq('user_id', uid);
-    if (error) throw error;
-    const ids = (mine || []).map((x) => x.tournament_id);
-    if (!ids.length) return res.json({ recent: [] });
-    const since = new Date(Date.now() - RECENT_MIN * 60000).toISOString();
-    const { data: ts, error: e2 } = await db.from('tournaments')
-      .select('id,title,mode,starts_at,completed_at,match_categories(name)')
-      .in('id', ids).eq('status', 'completed').gte('completed_at', since)
-      .order('completed_at', { ascending: false }).limit(10);
-    if (e2) throw e2;
-    const prize = {};
-    (mine || []).forEach((x) => { prize[x.tournament_id] = (prize[x.tournament_id] || 0) + Number(x.prize_won || 0); });
-    res.json({ recent: (ts || []).map((t) => {
-      const c = Array.isArray(t.match_categories) ? t.match_categories[0] : t.match_categories;
-      return { id: t.id, title: t.title, mode: t.mode, starts_at: t.starts_at, category_name: (c && c.name) || '', my_prize: prize[t.id] || 0 };
-    }) });
-  } catch (e) {
-    console.error('recent', e);
-    res.json({ recent: [] });
-  }
-});
-
 // Completed match ka result: kaun jeeta (rank ke saath), baaki players. Koi bhi logged-in user dekh sakta hai.
 router.get('/:id', requireUser, async (req, res) => {
   try {

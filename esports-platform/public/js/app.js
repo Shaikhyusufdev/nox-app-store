@@ -74,7 +74,7 @@
     '/rank': renderRank,
     '/earn': renderEarn,
     '/wallet': renderWallet,
-    '/support': () => renderSoon('Support', 'Help aur support', 'headset'),
+    '/support': renderSupport,
   };
 
   function render() {
@@ -233,18 +233,9 @@
       try { list = (await api.get('/tournaments?game=' + game.id)).tournaments; } catch { list = []; }
       if (path() !== '/') return;
     }
-    let recent = [];
-    try { recent = (await api.get('/results/recent')).recent || []; } catch (e) { recent = []; }
-    if (path() !== '/') return;
     const name = state.user.username || 'Player';
 
-    const quick = [
-      ['#/earn', 'Earn', 'coin', '#ffc83d'],
-      ['#/rank', 'Top Players', 'trophy', '#38e1ff'],
-      ['#/wallet', 'My Wallet', 'wallet', '#35d98a'],
-      ['#/support', 'Support', 'headset', '#ff7a3d'],
-    ].map(([href, label, icon, c2]) =>
-      `<a href="${href}"><span class="ico" style="--c:${c2}">${ICON[icon]}</span>${label}</a>`).join('');
+    
 
     const contests = [
       ['Upcoming', 'clock', '#38e1ff'],
@@ -257,9 +248,10 @@
       <header class="topbar">
         <div class="avatar" style="${avatarStyle(name)}">${esc(name.charAt(0).toUpperCase())}</div>
         <div class="hello"><small>Hi, <span class="uname">${esc(name)}</span></small><b>NOX ESPORTS</b></div>
+        <a class="ico-btn" href="#/support" aria-label="Support">${ICON.headset}</a>
         <a class="chip" href="#/wallet" data-count="${Number(balance) || 0}">${money(balance)}</a>
       </header>
-      <div class="quick">${quick}</div>
+      
       <div class="sec-title">My contests</div>
       <div class="contests">${contests}</div>
       <div id="mlist">${game ? '' : `<div class="empty"><b>Abhi koi game nahi hai</b>Admin panel se game add hone ke baad yaha matches dikhenge.</div>`}</div>
@@ -272,7 +264,7 @@
     if (game) {
       const box = $app.querySelector('#mlist');
       const drawList = () => {
-        box.innerHTML = recentHtml(recent) + matchListHtml(cats, list);
+        box.innerHTML = matchListHtml(cats, list);
         bindMatchList(box, drawList);
         startCd();
       };
@@ -429,18 +421,9 @@
     </button>`;
   }
 
-  // Haal hi me khatam hue matches (sirf joined user ko, kuch der ke liye) - purane sirf My Contests > Completed me
-  function recentHtml(arr) {
-    if (!arr || !arr.length) return '';
-    return '<div class="sec-title">Just ended</div>' + arr.map((r) => `<button type="button" class="mt-card" data-match="${esc(r.id)}">${cdHtml({ starts_at: r.starts_at, status: 'completed' })}
-      <h3>${esc(r.title)}</h3>
-      <div class="meta">${esc(r.category_name || 'Match')} &middot; ${esc(MODE_NAME[r.mode] || '')}</div>
-      <div class="meta" style="margin-bottom:0">${Number(r.my_prize) > 0 ? 'Aapne jeeta: <b style="color:var(--gold)">' + money(r.my_prize) + '</b>' : 'Result dekho'}</div></button>`).join('');
-  }
-
   // Tabs (All/Solo/Duo/Squad) + category chips + match cards (Home aur game page dono me same)
   function matchListHtml(cats, list) {
-    const shown = list.filter((t) => t.status !== 'completed' && (gameFilter.mode === 'all' || t.mode === gameFilter.mode) && (gameFilter.cat === 'all' || t.category_id === gameFilter.cat));
+    const shown = list.filter((t) => (gameFilter.mode === 'all' || t.mode === gameFilter.mode) && (gameFilter.cat === 'all' || t.category_id === gameFilter.cat));
     const tabs = MODES.map(([k, l]) => `<button type="button" data-mode="${k}" class="${gameFilter.mode === k ? 'on' : ''}">${l}</button>`).join('');
     const chips = `<button type="button" data-cat="all" class="${gameFilter.cat === 'all' ? 'on' : ''}">All</button>` +
       cats.map((c) => `<button type="button" data-cat="${esc(c.id)}" class="${gameFilter.cat === c.id ? 'on' : ''}">${esc(c.name)}</button>`).join('');
@@ -756,6 +739,77 @@
       ${leaders.length ? `<div class="rk-list">${leaders.map(row).join('')}</div>` : `<div class="empty"><b>Abhi koi rank nahi</b>Match join hote hi players yaha dikhenge.</div>`}
       ${navHtml('rank')}
     </div>`;
+    M.enter();
+  }
+
+    /* ---------- Support ---------- */
+  const SP_CATS = [['deposit', 'Deposit'], ['withdrawal', 'Withdrawal'], ['match', 'Match'], ['prize', 'Prize'], ['account', 'Account'], ['other', 'Other']];
+  const SP_LABEL = Object.fromEntries(SP_CATS);
+
+  async function renderSupport() {
+    const rep = (n, cls) => Array.from({ length: n }, () => `<i class="sk ${cls}"></i>`).join('');
+    $app.innerHTML = `<div class="screen"><div class="sk sk-top"></div><div class="sk-row sk-three">${rep(3, 'sk-box')}</div>${navHtml('')}</div>`;
+    M.nav();
+    const [bal, tk] = await Promise.allSettled([getBalance(), api.get('/support')]);
+    if (path() !== '/support') return;
+    if (tk.status === 'rejected' && tk.reason && tk.reason.status === 401) { state.user = null; return go('/login'); }
+    const balance = bal.status === 'fulfilled' ? bal.value : 0;
+    let tickets = tk.status === 'fulfilled' ? (tk.value.tickets || []) : [];
+    let cat = '';
+
+    $app.innerHTML = `<div class="screen">
+      ${subHeader('SUPPORT', balance)}
+      <div class="card sp-card">
+        <div class="sec-title">Problem batao</div>
+        <div class="sp-cats">${SP_CATS.map(([k, l]) => `<button type="button" data-c="${k}">${l}</button>`).join('')}</div>
+        <textarea id="sp-msg" maxlength="1000" placeholder="Problem thodi detail me likho (kam se kam 10 letters)"></textarea>
+        <div class="sp-count" id="sp-n">0 / 1000</div>
+        <div class="err" id="sp-err"></div>
+        <button class="btn" type="button" id="sp-go">Submit</button>
+      </div>
+      <div class="sec-title">Meri requests</div>
+      <div id="sp-list"></div>
+      ${navHtml('')}
+    </div>`;
+
+    const $msg = $app.querySelector('#sp-msg'), $err = $app.querySelector('#sp-err'), $go = $app.querySelector('#sp-go');
+
+    const drawList = () => {
+      const box = $app.querySelector('#sp-list');
+      if (!tickets.length) { box.innerHTML = `<div class="empty"><b>Abhi koi request nahi</b>Upar se apni problem bhejo.</div>`; return; }
+      box.innerHTML = tickets.map((t) => `<div class="sp-tk${t.status === 'closed' ? ' closed' : ''}">
+        <div class="sp-top"><b>${esc(t.ticket_no)}</b><span>${esc(SP_LABEL[t.category] || t.category)} &middot; ${esc(fmtDate(t.created_at))}</span><em>${t.status === 'closed' ? 'CLOSED' : 'OPEN'}</em></div>
+        <div class="sp-msg">${esc(t.message)}</div>
+        ${t.admin_note ? `<div class="sp-rep"><small>SUPPORT REPLY</small>${esc(t.admin_note)}</div>` : ''}
+      </div>`).join('');
+    };
+    drawList();
+
+    $app.querySelectorAll('.sp-cats button').forEach((b) => b.addEventListener('click', () => {
+      cat = b.getAttribute('data-c');
+      $app.querySelectorAll('.sp-cats button').forEach((x) => x.classList.toggle('on', x === b));
+      $err.textContent = '';
+    }));
+    $msg.addEventListener('input', () => { $app.querySelector('#sp-n').textContent = $msg.value.length + ' / 1000'; $err.textContent = ''; });
+
+    $go.addEventListener('click', async () => {
+      const message = $msg.value.trim();
+      if (!cat) { $err.textContent = 'Pehle problem ka type chuno'; return; }
+      if (message.length < 10) { $err.textContent = 'Problem thodi detail me likho (kam se kam 10 letters)'; return; }
+      $err.textContent = '';
+      $go.disabled = true; $go.textContent = 'Please wait...';
+      try {
+        const r = await api.post('/support', { category: cat, message });
+        tickets.unshift(r.ticket);
+        $msg.value = ''; $app.querySelector('#sp-n').textContent = '0 / 1000';
+        cat = ''; $app.querySelectorAll('.sp-cats button').forEach((x) => x.classList.remove('on'));
+        drawList();
+        toast('Request bhej di: ' + r.ticket.ticket_no);
+      } catch (ex) {
+        $err.textContent = ex.message;
+      }
+      $go.disabled = false; $go.textContent = 'Submit';
+    });
     M.enter();
   }
 

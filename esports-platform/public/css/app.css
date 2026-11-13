@@ -202,3 +202,25 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .loading { text-align: center; color: var(--muted); padding: 60px 0; }
 a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--ice); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+/* ---------- home header support button ---------- */
+.ico-btn { display: grid; place-items: center; width: 38px; height: 38px; flex: none; background: var(--panel); border: 1px solid var(--edge); clip-path: var(--cut-sm); color: var(--fire2); }
+.ico-btn svg { width: 20px; height: 20px; }
+
+/* ---------- support ---------- */
+.sp-card { padding: 16px; margin-bottom: 14px; }
+.sp-cats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.sp-cats button { padding: 7px 14px; border: 1px solid var(--edge); background: var(--panel2); color: var(--muted); font: 600 13px var(--font-body); cursor: pointer; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.sp-cats button.on { color: var(--ice); background: rgba(56, 225, 255, .12); border-color: var(--ice); }
+.sp-card textarea { width: 100%; min-height: 96px; resize: vertical; padding: 12px 14px; border: 1.5px solid var(--edge); background: var(--panel2); color: var(--ink); font: 15px var(--font-body); outline: none; }
+.sp-card textarea:focus { border-color: var(--ice); box-shadow: 0 0 0 3px rgba(56, 225, 255, .12); }
+.sp-count { text-align: right; font-size: 11px; color: var(--muted); margin: 3px 0 4px; }
+.sp-tk { background: var(--panel); border: 1px solid var(--edge); border-left: 3px solid var(--fire); clip-path: var(--cut-sm); padding: 12px 14px; margin-bottom: 10px; }
+.sp-tk.closed { border-left-color: var(--ok); }
+.sp-top { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.sp-top b { font: 700 14px var(--font-head); letter-spacing: .04em; }
+.sp-top span { font-size: 12px; color: var(--muted); flex: 1; }
+.sp-top em { font-style: normal; font: 700 10px var(--font-head); letter-spacing: .06em; padding: 3px 8px; color: #1a0a00; background: var(--fire2); }
+.sp-tk.closed .sp-top em { background: var(--ok); color: #03210f; }
+.sp-msg { font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.sp-rep { margin-top: 8px; padding: 8px 10px; background: rgba(56, 225, 255, .08); border-left: 2px solid var(--ice); font-size: 13px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.sp-rep small { display: block; color: var(--ice); font: 700 10px var(--font-head); letter-spacing: .08em; margin-bottom: 2px; }
