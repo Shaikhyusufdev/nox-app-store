@@ -42,12 +42,14 @@ app.use((req, res, next) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin-auth'));
 app.use('/api/admin/manage', require('./routes/admin-manage'));
+app.use('/api/admin/support', require('./routes/admin-support'));
 app.use('/api/admin/games', require('./routes/admin-games'));
 app.use('/api/admin/tournaments', require('./routes/admin-results'));
 app.use('/api/admin/tournaments', require('./routes/admin-tournaments'));
 app.use('/api/payments', payments);
 app.use('/api/earn', require('./routes/earn'));
 app.use('/api/results', require('./routes/results'));
+app.use('/api/support', require('./routes/support'));
 app.use('/api', require('./routes/tournaments'));
 
 app.use(express.static(path.join(__dirname, 'public')));
