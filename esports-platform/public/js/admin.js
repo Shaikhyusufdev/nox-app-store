@@ -373,6 +373,87 @@
     ov.querySelector('#r-id').focus();
   }
 
+  // Joined players dekho + result (rank -> team) dekar prize bantao
+  async function openResult(t) {
+    let d;
+    try { d = await call('GET', '/api/admin/tournaments/' + t.id + '/participants'); }
+    catch (e) { toast(e.message); return; }
+    const info = d.tournament;
+    const ps = d.participants || [];
+    const isBr = info.layout === 'br';
+    const size = info.team_size || 1;
+    const teams = {};
+    ps.forEach((p) => { (teams[p.team_no] = teams[p.team_no] || []).push(p); });
+    const teamNos = Object.keys(teams).map(Number).sort((a, b) => a - b);
+    const teamName = (n) => (isBr ? (size === 1 ? 'Slot ' + n : 'Team ' + n) : (n === 1 ? 'RED' : 'BLUE'));
+    const names = (n) => teams[n].map((p) => p.username).join(', ');
+    const done = info.status === 'completed';
+    const canPay = info.status === 'ongoing' && !done;
+    const ord = (n) => n + (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th');
+
+    const listHtml = teamNos.length ? teamNos.map((n) =>
+      '<div style="padding:7px 0;border-bottom:1px solid rgba(128,128,128,.2);font-size:14px"><b>' + esc(teamName(n)) + '</b>' +
+      (isBr && size === 1 ? '' : '') + ': ' +
+      teams[n].map((p) => esc(p.username) + (done && p.prize_won ? ' (' + inr(p.prize_won) + ', rank ' + esc(p.placement) + ')' : '')).join(', ') + '</div>').join('')
+      : '<div class="empty">Abhi koi player join nahi hua.</div>';
+
+    const rows = isBr
+      ? (info.prize_distribution || []).map((x) => ({ rank: Number(x.rank), amount: Number(x.amount) || 0, label: ord(Number(x.rank)) + (size > 1 ? ' team' : '') }))
+      : [{ rank: 1, amount: Number(info.prize_pool) || 0, label: 'Winner team' }];
+    const teamOpts = '<option value="">-- chuno --</option>' + teamNos.map((n) => '<option value="' + n + '">' + esc(teamName(n)) + ' - ' + esc(names(n)) + '</option>').join('');
+
+    const payHtml = canPay
+      ? '<h2 style="margin-top:16px">Result (rank ke hisaab se prize)</h2>' +
+        '<div style="font-size:13px;opacity:.75;margin-bottom:8px">Jo rank khali chhodoge uska prize nahi jayega. Prize ek hi baar jaata hai, baad me badal nahi sakte.</div>' +
+        rows.map((r) => '<div style="margin-bottom:10px"><label>' + esc(r.label) + ' - ' + inr(r.amount) + '</label>' +
+          '<select data-rr="' + r.rank + '">' + teamOpts + '</select>' +
+          '<div style="font-size:12px;opacity:.7;margin-top:3px" data-rs="' + r.rank + '"></div></div>').join('') +
+        '<div class="err" id="rs-err"></div><button class="btn" id="rs-go">Prize do</button>'
+      : '<div style="font-size:13px;opacity:.75;margin-top:12px">' + (done ? 'Is match ka prize mil chuka hai.' : 'Result dene ke liye match Ongoing hona chahiye (Room / Start se).') + '</div>';
+
+    const m = modal(
+      '<h2>' + esc(info.title) + ' ' + pill(info.status, info.status === 'completed' || info.status === 'cancelled') + '</h2>' +
+      '<div style="font-size:13px;opacity:.75;margin-bottom:8px">' + esc(MODE_LABEL[info.mode] || '') + ' | ' + esc(info.joined_count) + ' players joined | Prize pool ' + inr(info.prize_pool) + '</div>' +
+      '<h2 style="margin-top:8px">Joined players</h2>' + listHtml + payHtml +
+      '<button class="btn ghost" id="rs-close" style="margin-top:14px;width:100%">Close</button>');
+    const el = m.el;
+    el.querySelector('#rs-close').addEventListener('click', m.close);
+    if (!canPay) return;
+
+    const shareText = (amount, n) => {
+      if (!n || !teams[n]) return '';
+      const cnt = teams[n].length;
+      return cnt > 1 ? 'Har player ko ~' + inr(Math.floor(amount / cnt * 100) / 100) + ' (' + cnt + ' players)' : '1 player ko ' + inr(amount);
+    };
+    el.querySelectorAll('[data-rr]').forEach((sel) => sel.addEventListener('change', () => {
+      const r = rows.find((x) => x.rank === Number(sel.getAttribute('data-rr')));
+      el.querySelector('[data-rs="' + r.rank + '"]').textContent = shareText(r.amount, Number(sel.value));
+    }));
+    const go = el.querySelector('#rs-go');
+    const err = el.querySelector('#rs-err');
+    go.addEventListener('click', async () => {
+      err.textContent = '';
+      const results = [];
+      el.querySelectorAll('[data-rr]').forEach((sel) => {
+        if (sel.value) results.push({ rank: Number(sel.getAttribute('data-rr')), team_no: Number(sel.value) });
+      });
+      if (!results.length) { err.textContent = 'Kam se kam ek rank ke liye team chuno'; return; }
+      if (new Set(results.map((x) => x.team_no)).size !== results.length) { err.textContent = 'Ek team do rank me nahi ho sakti'; return; }
+      const summary = results.map((x) => {
+        const r = rows.find((y) => y.rank === x.rank);
+        return r.label + ': ' + teamName(x.team_no) + ' (' + names(x.team_no) + ') = ' + inr(r.amount);
+      }).join('\n');
+      if (!window.confirm('Prize de du? Ye wapas nahi hoga.\n\n' + summary)) return;
+      go.disabled = true;
+      try {
+        const out = await call('POST', '/api/admin/tournaments/' + t.id + '/payout', { results: results });
+        toast('Prize mil gaya: ' + inr((out.result || {}).paid_total));
+        m.close();
+        await loadTournaments();
+      } catch (e) { err.textContent = e.message; go.disabled = false; }
+    });
+  }
+
   function renderTList() {
     const box = document.getElementById('t-list');
     if (!tournaments.length) { box.innerHTML = '<div class="empty">Abhi koi tournament nahi. Upar form se pehla tournament add karo.</div>'; return; }
@@ -381,10 +462,15 @@
       ' | Entry Rs' + esc(t.entry_fee) + ' | Prize Rs' + esc(t.prize_pool) +
       ' | ' + esc(t.joined_count) + '/' + esc(t.max_players) + ' joined | ' + esc(fmtDate(t.starts_at)) + '</span></div>' +
       '<span class="pill' + ((t.status === 'cancelled' || t.status === 'completed') ? ' off' : '') + '">' + esc(t.status) + '</span>' +
+      '<button class="btn ghost small" data-tres="' + esc(t.id) + '">' + (t.status === 'ongoing' ? 'Players / Result' : 'Players') + '</button>' +
       '<button class="btn ghost small" data-troom="' + esc(t.id) + '">' + (t.room_published ? 'Room (set)' : 'Room / Start') + '</button>' +
       '<button class="btn ghost small" data-tedit="' + esc(t.id) + '">Edit</button>' +
       '<button class="btn ghost small" data-tdel="' + esc(t.id) + '">Delete</button></div>'
     ).join('');
+    box.querySelectorAll('[data-tres]').forEach((b) => b.addEventListener('click', () => {
+      const t = tournaments.find((x) => x.id === b.getAttribute('data-tres'));
+      if (t) openResult(t);
+    }));
     box.querySelectorAll('[data-troom]').forEach((b) => b.addEventListener('click', () => {
       const t = tournaments.find((x) => x.id === b.getAttribute('data-troom'));
       if (t) openRoom(t);
