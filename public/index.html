@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NOX ESPORTS: Join matches, win prizes</title>
 <meta name="description" content="NOX ESPORTS is a tournament app for mobile gamers. Pick your slot, get the room details in the app, and track every match you play.">
 <meta name="theme-color" content="#0c0806">
@@ -11,157 +11,210 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Hind:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--ink:#0c0806;--ink2:#17100b;--line:#3a2616;--cream:#fff0cf;--mute:#b9a48b;--gold:#ffd36b;--amber:#ff8a1f;--red:#e5391a;--bevel:polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px)}
+:root{--ink:#0c0806;--ink2:#17100b;--line:#3a2616;--cream:#fff0cf;--mute:#b9a48b;--gold:#ffd36b;--amber:#ff8a1f;--red:#e5391a;--bevel:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px)}
 *{box-sizing:border-box;margin:0}
 html{scroll-behavior:smooth}
 body{background:var(--ink);color:var(--cream);font:400 17px/1.6 Hind,system-ui,sans-serif;overflow-x:hidden}
-h1,h2,h3,.btn,.brand{font-family:"Chakra Petch",sans-serif;line-height:1.1}
+h1,h2,h3,.btn,.brand{font-family:"Chakra Petch",sans-serif;line-height:1.08}
 a{color:inherit}
 :focus-visible{outline:3px solid var(--gold);outline-offset:3px}
 #embers{position:fixed;inset:0;z-index:0;pointer-events:none}
-.wrap{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:0 24px}
-nav{position:sticky;top:0;z-index:5;transition:background .3s,border-color .3s;border-bottom:1px solid transparent}
+#bar{position:fixed;top:0;left:0;height:3px;width:100%;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,var(--gold),var(--amber),var(--red));z-index:9}
+.wrap{position:relative;z-index:1;max-width:1120px;margin:0 auto;padding:0 22px}
+nav{position:sticky;top:0;z-index:8;border-bottom:1px solid transparent;transition:.3s}
 nav.on{background:rgba(12,8,6,.88);backdrop-filter:blur(10px);border-color:var(--line)}
-nav .wrap{display:flex;align-items:center;justify-content:space-between;height:68px}
-.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:20px;text-decoration:none;letter-spacing:.02em}
-.brand img{width:36px;height:36px;border-radius:8px}
-.btn{display:inline-block;text-decoration:none;font-weight:700;font-size:18px;padding:16px 34px;color:#1a0b02;background:linear-gradient(100deg,var(--gold),var(--amber) 55%,var(--red));clip-path:var(--bevel);position:relative;overflow:hidden;transition:transform .2s,filter .2s}
-.btn:hover{transform:translateY(-3px);filter:brightness(1.1)}
-.btn::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.55) 50%,transparent 65%);transform:translateX(-120%)}
+nav .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;text-decoration:none}
+.brand img{width:34px;height:34px;border-radius:8px}
+.btn{display:inline-block;text-decoration:none;font-weight:700;font-size:18px;padding:16px 34px;color:#1a0b02;background:linear-gradient(100deg,var(--gold),var(--amber) 55%,var(--red));clip-path:var(--bevel);position:relative;overflow:hidden;transform:translate(var(--mx,0),var(--my,0));transition:transform .15s,filter .2s}
+.btn:hover{filter:brightness(1.12)}
+.btn::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.6) 50%,transparent 65%);transform:translateX(-120%)}
 .btn:hover::after{transform:translateX(120%);transition:transform .7s}
-.btn.sm{font-size:15px;padding:10px 22px}
-.btn.ghost{background:none;color:var(--cream);box-shadow:inset 0 0 0 2px var(--line);clip-path:none;border-radius:2px}
+.btn.sm{font-size:15px;padding:10px 20px}
+.btn.ghost{background:none;color:var(--cream);box-shadow:inset 0 0 0 2px var(--line);clip-path:none}
+/* wipe reveal: diagonal like the logo slant */
+.wipe{clip-path:polygon(0 0,0 0,-14% 100%,0 100%);opacity:.2;transition:clip-path .9s cubic-bezier(.2,.8,.2,1),opacity .9s}
+.wipe.in{clip-path:polygon(0 0,114% 0,100% 100%,-14% 100%);opacity:1}
 /* hero */
-.hero{position:relative;padding:56px 0 96px;overflow:hidden}
-.hero .wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center}
-.glow{position:absolute;width:760px;height:760px;right:-200px;top:-160px;background:radial-gradient(circle,rgba(255,138,31,.28),transparent 62%);animation:breathe 7s ease-in-out infinite}
-@keyframes breathe{50%{transform:scale(1.15);opacity:.75}}
-.bars{display:flex;gap:10px;height:74px;margin-bottom:26px}
-.bars i{display:block;width:30px;transform:skewX(-14deg) translateY(-130%);opacity:0;background:linear-gradient(var(--gold),var(--amber));animation:drop .7s cubic-bezier(.2,.9,.3,1.2) forwards}
-.bars i:nth-child(2){width:84px;background:linear-gradient(120deg,var(--amber),var(--red));animation-delay:.12s}
-.bars i:nth-child(3){animation-delay:.24s}
-@keyframes drop{to{transform:skewX(-14deg);opacity:1}}
-h1{font-size:clamp(46px,7vw,92px);font-weight:700;letter-spacing:-.01em;background:linear-gradient(100deg,var(--cream) 20%,var(--gold) 45%,var(--amber) 70%,var(--cream) 95%);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sheen 6s linear infinite 1s}
-@keyframes sheen{to{background-position:-250% 0}}
-.lead{max-width:30em;margin:22px 0 34px;color:var(--mute);font-size:19px;opacity:0;animation:rise .8s .6s forwards}
-.cta{display:flex;flex-wrap:wrap;gap:16px;align-items:center;opacity:0;animation:rise .8s .8s forwards}
-@keyframes rise{from{transform:translateY(16px)}to{transform:none;opacity:1}}
-.note{margin-top:18px;font-size:14px;color:var(--mute)}
+.hero{position:relative;min-height:calc(100svh - 64px);display:flex;align-items:center;padding:30px 0 70px;overflow:hidden}
+.hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:30px;align-items:center;width:100%}
+.bgn{position:absolute;right:-4%;top:6%;display:flex;gap:3vw;height:90%;pointer-events:none;opacity:.2}
+.bgn i{display:block;width:9vw;max-width:130px;background:linear-gradient(var(--gold),var(--red));transform:skewX(-14deg) translateY(-120%);animation:drop 1.1s cubic-bezier(.2,.9,.3,1.1) forwards}
+.bgn i:nth-child(2){width:20vw;max-width:300px;animation-delay:.15s}.bgn i:nth-child(3){animation-delay:.3s}
+@keyframes drop{to{transform:skewX(-14deg)}}
+h1{font-size:clamp(44px,7.4vw,96px);font-weight:700;letter-spacing:-.015em}
+h1 .w{display:inline-block;white-space:nowrap;margin-right:.22em}
+h1 .c{display:inline-block;transform:translateY(120%) rotate(10deg);opacity:0;animation:up .8s cubic-bezier(.2,.9,.2,1) forwards,wave 5s ease-in-out infinite;animation-delay:calc(var(--i)*38ms + .3s),calc(var(--i)*90ms + 2s)}
+@keyframes up{to{transform:none;opacity:1}}
+@keyframes wave{40%{color:var(--gold);text-shadow:0 0 26px rgba(255,138,31,.7)}}
+.lead{max-width:30em;margin:22px 0 32px;color:var(--mute);font-size:19px;opacity:0;animation:fade .8s 1.2s forwards}
+.cta{display:flex;flex-wrap:wrap;gap:14px;opacity:0;animation:fade .8s 1.4s forwards}
+@keyframes fade{to{opacity:1}}
+.note{margin-top:16px;font-size:14px;color:var(--mute);opacity:0;animation:fade .8s 1.6s forwards}
+.hint{position:absolute;left:50%;bottom:18px;width:2px;height:38px;background:linear-gradient(var(--amber),transparent);animation:hint 1.6s infinite}
+@keyframes hint{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 /* phone */
-.stage{perspective:1100px;display:flex;justify-content:center}
-.phone{width:300px;padding:12px;background:#000;border-radius:38px;box-shadow:0 0 0 2px var(--line),0 40px 90px rgba(229,57,26,.28);transition:transform .15s;animation:float 6s ease-in-out infinite}
-@keyframes float{50%{margin-top:-14px}}
-.screen{background:linear-gradient(180deg,#1d120a,#0e0805);border-radius:28px;padding:20px 16px;min-height:520px}
-.top{display:flex;justify-content:space-between;align-items:center;font:700 15px "Chakra Petch";margin-bottom:16px}
-.coin{padding:4px 12px;background:var(--ink2);box-shadow:inset 0 0 0 1px var(--line);color:var(--gold)}
-.match{background:var(--ink2);padding:14px;margin-bottom:12px;clip-path:var(--bevel);border-left:3px solid var(--amber)}
-.match b{font:700 15px "Chakra Petch";display:block}
-.match small{color:var(--mute);font-size:13px}
-.row{display:flex;justify-content:space-between;margin-top:10px;font-size:14px}
-.row span:last-child{color:var(--gold);font-weight:500}
-.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
-.slots u{height:26px;background:#2a1b10;text-decoration:none;transition:background .2s}
-.slots u.me{background:var(--amber);animation:pick 3s infinite}
+.stage{display:flex;justify-content:center;perspective:1100px}
+.phone{width:290px;padding:11px;background:#000;border-radius:38px;box-shadow:0 0 0 2px var(--line),0 40px 90px rgba(229,57,26,.3);transition:transform .2s;will-change:transform}
+.fl{animation:float 6s ease-in-out infinite}.stage.fl{perspective:1100px}
+@keyframes float{50%{transform:translateY(-14px)}}
+.screen{position:relative;height:540px;border-radius:28px;overflow:hidden;background:linear-gradient(180deg,#1d120a,#0e0805)}
+.scr{position:absolute;inset:0;padding:22px 16px;opacity:0;transform:translateX(40px) scale(.96);transition:.5s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.scr.on{opacity:1;transform:none}
+.top{display:flex;justify-content:space-between;align-items:center;font:700 15px "Chakra Petch";margin-bottom:14px}
+.coin{padding:3px 12px;background:var(--ink2);box-shadow:inset 0 0 0 1px var(--line);color:var(--gold)}
+.card{background:var(--ink2);padding:13px;margin-bottom:11px;clip-path:var(--bevel);border-left:3px solid var(--amber);font-size:14px}
+.card b{font:700 15px "Chakra Petch";display:block;margin-bottom:2px}
+.card small{color:var(--mute)}
+.row{display:flex;justify-content:space-between;margin-top:8px;color:var(--gold)}
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.slots u{height:30px;background:#2a1b10;transition:background .3s}
 .slots u.t{background:#5a3a1e}
-@keyframes pick{50%{background:var(--gold)}}
-.live{color:#7dffb0;font-size:13px}
-.live::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#7dffb0;margin-right:6px;animation:blink 1.2s infinite}
-@keyframes blink{50%{opacity:.2}}
-/* sections */
-.tape{border-block:1px solid var(--line);background:var(--ink2);overflow:hidden;white-space:nowrap;position:relative;z-index:1}
-.tape div{display:inline-block;padding:16px 0;font:600 22px "Chakra Petch";color:var(--mute);animation:scroll 28s linear infinite}
-.tape span{margin:0 28px}.tape span:nth-child(3n+1){color:var(--gold)}
+.on .slots u.me{animation:pick 1.8s infinite .8s}
+@keyframes pick{50%{background:var(--gold);box-shadow:0 0 14px var(--amber)}}
+.dig{font:700 26px "Chakra Petch";letter-spacing:.18em;color:var(--gold);margin-top:6px}
+.on .dig span{display:inline-block;animation:flip .6s both;animation-delay:calc(var(--i)*90ms + .3s)}
+@keyframes flip{from{transform:translateY(-100%) rotateX(90deg);opacity:0}}
+.bal{margin-top:12px}.bal div{height:8px;background:#2a1b10;margin-top:6px}
+.bal i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--amber),var(--gold));transition:width 1s .4s}
+.on .bal i{width:var(--w)}
+.tag{display:inline-block;margin-top:8px;padding:2px 10px;background:rgba(125,255,176,.14);color:#7dffb0;font-size:13px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;font-size:13px}.tabs span{padding:5px 10px;background:var(--ink2)}.tabs .a{background:var(--amber);color:#1a0b02}
+/* ticker */
+.tape{border-block:1px solid var(--line);background:var(--ink2);overflow:hidden;position:relative;z-index:1}
+.tape .sk{width:max-content}
+.tape .in{display:flex;width:max-content;animation:scroll 30s linear infinite}
+.tape span{white-space:nowrap;padding:14px 26px;font:600 22px "Chakra Petch";color:var(--mute)}
+.tape span:nth-child(3n+1){color:var(--gold)}
 @keyframes scroll{to{transform:translateX(-50%)}}
-section{padding:96px 0}
-h2{font-size:clamp(32px,4.4vw,52px);max-width:14em;margin-bottom:14px}
-.sub{color:var(--mute);max-width:34em;margin-bottom:46px}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-.card{--x:50%;--y:50%;position:relative;padding:28px 26px 30px;background:var(--ink2);clip-path:var(--bevel)}
-.card::before{content:"";position:absolute;inset:0;background:radial-gradient(260px circle at var(--x) var(--y),rgba(255,138,31,.28),transparent 70%);opacity:0;transition:opacity .25s}
-.card:hover::before{opacity:1}
-.card h3{font-size:22px;margin-bottom:8px;position:relative}
-.card p{color:var(--mute);font-size:16px;position:relative}
-.card.big{grid-column:span 2;background:linear-gradient(120deg,#2a1608,var(--ink2))}
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;counter-reset:s}
-.step{padding:0 30px 0 0;border-top:3px solid var(--line);padding-top:24px;position:relative}
-.step::before{counter-increment:s;content:counter(s);position:absolute;top:-22px;left:0;width:40px;height:40px;display:grid;place-items:center;font:700 20px "Chakra Petch";color:#1a0b02;background:linear-gradient(var(--gold),var(--amber));transform:skewX(-14deg)}
-.step h3{font-size:22px;margin:14px 0 6px}.step p{color:var(--mute)}
+section{padding:90px 0;position:relative;z-index:1}
+h2{font-size:clamp(32px,4.6vw,54px);max-width:13em;margin-bottom:14px}
+.sub{color:var(--mute);max-width:34em}
+/* story */
+.story{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:20px}
+.beat{min-height:72vh;display:flex;flex-direction:column;justify-content:center;opacity:.28;transition:opacity .4s,transform .4s;transform:translateX(-14px);border-left:3px solid var(--line);padding-left:26px}
+.beat.on{opacity:1;transform:none;border-color:var(--amber)}
+.beat h3{font-size:clamp(26px,3.4vw,38px);margin-bottom:10px}
+.beat p{color:var(--mute);max-width:26em}
+.pin{position:sticky;top:90px;align-self:start;height:600px;display:flex;justify-content:center;align-items:flex-start}
+/* timeline */
+.alt{background:var(--ink2)}
+.tl{position:relative;margin-top:50px;padding-left:64px}
+.tl::before,.tl .fill{content:"";position:absolute;left:19px;top:0;bottom:0;width:3px;background:var(--line)}
+.tl .fill{background:linear-gradient(var(--gold),var(--red));transform-origin:top;transform:scaleY(var(--p,0))}
+.st{position:relative;padding-bottom:56px;opacity:.3;transition:.4s}
+.st:last-child{padding-bottom:0}
+.st.on{opacity:1}
+.st::before{counter-increment:s;content:counter(s);position:absolute;left:-64px;top:0;width:42px;height:42px;display:grid;place-items:center;font:700 20px "Chakra Petch";background:var(--line);color:var(--cream);transform:skewX(-14deg);transition:.4s}
+.tl{counter-reset:s}
+.st.on::before{background:linear-gradient(var(--gold),var(--amber));color:#1a0b02;box-shadow:0 0 24px rgba(255,138,31,.55)}
+.st h3{font-size:26px;margin-bottom:4px}.st p{color:var(--mute);max-width:30em}
 .final{text-align:center;padding:110px 0}
-.final h2{margin-inline:auto}.final .sub{margin-inline:auto}
+.final h2,.final .sub{margin-inline:auto}
+.final .btn{margin-top:30px;animation:ring 2.4s infinite}
+@keyframes ring{0%{filter:drop-shadow(0 0 0 rgba(255,138,31,.7))}100%{filter:drop-shadow(0 0 28px rgba(255,138,31,0))}}
+.faq{margin-top:60px}
 details{max-width:720px;margin:0 auto;border-bottom:1px solid var(--line);text-align:left}
-summary{cursor:pointer;padding:18px 0;font:600 19px "Chakra Petch";list-style:none;display:flex;justify-content:space-between}
+summary{cursor:pointer;padding:18px 0;font:600 19px "Chakra Petch";list-style:none;display:flex;justify-content:space-between;gap:12px}
 summary::after{content:"+";color:var(--amber);transition:transform .25s}
 details[open] summary::after{transform:rotate(45deg)}
 details p{padding:0 0 18px;color:var(--mute)}
-.faq{margin-top:56px}
-footer{border-top:1px solid var(--line);padding:30px 0;color:var(--mute);font-size:14px;position:relative;z-index:1}
-footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
-@media(max-width:860px){.hero .wrap,.grid,.steps{grid-template-columns:1fr}.card.big{grid-column:auto}.step{margin-bottom:44px}.hero{padding-top:30px}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.bars i,.lead,.cta{opacity:1;transform:skewX(-14deg)}.lead,.cta{transform:none}.tape div{white-space:normal}}
+footer{border-top:1px solid var(--line);padding:28px 0;color:var(--mute);font-size:14px;position:relative;z-index:1}
+footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+@media(max-width:860px){
+  body{font-size:16px}
+  .hero{padding:10px 0 80px;text-align:left}
+  .hero .wrap{grid-template-columns:1fr}
+  .stage{margin-top:14px}.stage .phone{transform-origin:top center;margin-bottom:-170px;scale:.82}
+  .bgn{opacity:.14;right:-12%}
+  .btn{padding:15px 26px;font-size:17px}
+  section{padding:64px 0}
+  .story{grid-template-columns:1fr;gap:0}
+  .pin{position:sticky;top:64px;z-index:3;height:330px;order:-1;background:linear-gradient(var(--ink) 82%,transparent);overflow:hidden;margin:0 -22px}
+  .pin .phone{scale:.56;transform-origin:top center;margin-top:8px}
+  .beat{min-height:56vh;padding-left:18px}
+}
+@media(prefers-reduced-motion:reduce){.tape .in,.fl,.final .btn{animation:none}.tape{overflow-x:auto}}
 </style>
 </head>
 <body>
+<div id="bar"></div>
 <canvas id="embers" aria-hidden="true"></canvas>
 <nav id="nav"><div class="wrap">
-  <a class="brand" href="#top"><img src="nox-icon.png" alt="" width="36" height="36">NOX ESPORTS</a>
+  <a class="brand" href="#top"><img src="nox-icon.png" alt="" width="34" height="34">NOX ESPORTS</a>
   <a class="btn sm" href="nox-esport.apk" download>Download APK</a>
 </div></nav>
 
 <header class="hero" id="top">
-  <div class="glow" aria-hidden="true"></div>
+  <div class="bgn" aria-hidden="true" data-p="-.08"><i></i><i></i><i></i></div>
   <div class="wrap">
     <div>
-      <div class="bars" aria-hidden="true"><i></i><i></i><i></i></div>
-      <h1>Your next match starts here.</h1>
-      <p class="lead">Pick a tournament, choose your exact slot, and get the room ID in the app the moment the match opens. No groups to chase, no screenshots to send.</p>
+      <h1 id="h1" aria-label="Your next match starts here.">Your next match starts here.</h1>
+      <p class="lead">Pick a tournament, choose your exact slot, and get the room ID in the app the moment the match opens.</p>
       <div class="cta">
-        <a class="btn" href="nox-esport.apk" download>Download for Android</a>
-        <a class="btn ghost" href="#how">See how it works</a>
+        <a class="btn mag" href="nox-esport.apk" download>Download for Android</a>
+        <a class="btn ghost" href="#story">See how it works</a>
       </div>
       <p class="note">Android only. Free to install. About 4 MB.</p>
     </div>
-    <div class="stage" aria-hidden="true">
-      <div class="phone" id="phone"><div class="screen">
+    <div class="stage fl" aria-hidden="true">
+      <div class="phone" id="hp"><div class="screen"><div class="scr on" id="hero-scr">
         <div class="top"><span>MY CONTESTS</span><span class="coin">₹18</span></div>
-        <div class="match"><b>Clash Squad 1v1</b><small>Starts in <span id="cd">00:14:32</span></small>
-          <div class="row"><span class="live">Registration open</span><span>Entry ₹10</span></div></div>
-        <div class="match"><b>Battle Royale Squad</b><small>Pick your slot</small>
-          <div class="slots"><u class="t"></u><u class="t"></u><u></u><u></u><u class="t"></u><u class="me"></u><u></u><u class="t"></u></div></div>
-        <div class="match"><b>Room details</b><small>Visible only to joined players</small>
-          <div class="row"><span>Room ID</span><span>••••••</span></div></div>
-      </div></div>
+        <div class="tabs"><span class="a">Upcoming</span><span>Ongoing</span><span>Completed</span></div>
+        <div class="card"><b>Clash Squad 1v1</b><small>Starts in <span id="cd">00:14:32</span></small><div class="row"><span>Registration open</span><span>Entry ₹10</span></div></div>
+        <div class="card"><b>Battle Royale Squad</b><small>Pick your slot</small><div class="slots"><u class="t"></u><u class="t"></u><u></u><u></u><u class="t"></u><u class="me"></u><u></u><u class="t"></u></div></div>
+        <div class="card"><b>Room details</b><small>Visible to joined players only</small></div>
+      </div></div></div>
     </div>
   </div>
+  <div class="hint" aria-hidden="true"></div>
 </header>
 
-<div class="tape" aria-hidden="true"><div id="tape"></div></div>
+<div class="tape" aria-hidden="true"><div class="sk" id="sk"><div class="in" id="tape"></div></div></div>
 
-<section id="features"><div class="wrap">
-  <h2>Everything a match needs, in one app.</h2>
-  <p class="sub">Built for players who are tired of juggling chats, screenshots and payment apps.</p>
-  <div class="grid">
-    <div class="card big"><h3>Choose your own slot</h3><p>See every team and slot before you pay. Tap the one you want. If someone grabs it first, you are told right away and can pick another.</p></div>
-    <div class="card"><h3>Room details in the app</h3><p>Room ID and password appear only for joined players, after the admin publishes them.</p></div>
-    <div class="card"><h3>One wallet, clear history</h3><p>Deposit, winnings and bonus stay separate. Every entry fee and prize is listed.</p></div>
-    <div class="card"><h3>Refunds if a match is cancelled</h3><p>Your entry fee goes back to the same balance it came from.</p></div>
-    <div class="card"><h3>Every match you played</h3><p>Upcoming, ongoing and completed matches stay in My Contests, even after the admin removes them.</p></div>
+<section id="story"><div class="wrap">
+  <h2 class="wipe">Everything a match needs, in one app.</h2>
+  <p class="sub wipe">Scroll down and watch the app change with each step.</p>
+  <div class="story">
+    <div>
+      <div class="beat" data-s="0"><h3>Pick your exact slot</h3><p>See every team and slot before you pay. Tap the one you want. If someone takes it first, you are told right away and can choose another.</p></div>
+      <div class="beat" data-s="1"><h3>Room details land in the app</h3><p>Room ID and password show up only for joined players, after the admin publishes them. No screenshots, no group chats.</p></div>
+      <div class="beat" data-s="2"><h3>One wallet, three balances</h3><p>Deposit, winnings and bonus stay separate, and every entry fee and prize is listed in your history.</p></div>
+      <div class="beat" data-s="3"><h3>Cancelled? You get it back</h3><p>If a match is cancelled, your entry fee returns to the balance it came from. Every match you played stays in My Contests.</p></div>
+    </div>
+    <div class="pin"><div class="phone" id="sp" aria-hidden="true"><div class="screen">
+      <div class="scr on" data-s="0"><div class="top"><span>CLASH SQUAD</span><span class="coin">Entry ₹10</span></div>
+        <div class="card"><b>Team Red</b><div class="slots"><u class="t"></u><u class="t"></u><u class="me"></u><u></u></div></div>
+        <div class="card"><b>Team Blue</b><div class="slots"><u class="t"></u><u></u><u></u><u class="t"></u></div></div>
+        <div class="card"><small>You picked Red, slot 3</small><div class="row"><span>Join match</span><span>₹10</span></div></div></div>
+      <div class="scr" data-s="1"><div class="top"><span>ROOM DETAILS</span><span class="coin live">Live</span></div>
+        <div class="card"><small>Room ID</small><div class="dig"><span style="--i:0">4</span><span style="--i:1">8</span><span style="--i:2">1</span><span style="--i:3">9</span><span style="--i:4">0</span><span style="--i:5">7</span></div></div>
+        <div class="card"><small>Password</small><div class="dig"><span style="--i:6">N</span><span style="--i:7">0</span><span style="--i:8">X</span><span style="--i:9">7</span></div></div></div>
+      <div class="scr" data-s="2"><div class="top"><span>WALLET</span><span class="coin">₹18</span></div>
+        <div class="card"><b>Deposit</b><div class="bal"><div><i style="--w:55%"></i></div></div></div>
+        <div class="card"><b>Winnings</b><div class="bal"><div><i style="--w:30%"></i></div></div></div>
+        <div class="card"><b>Bonus</b><div class="bal"><div><i style="--w:15%"></i></div></div></div></div>
+      <div class="scr" data-s="3"><div class="top"><span>MY CONTESTS</span></div>
+        <div class="tabs"><span>Upcoming</span><span>Ongoing</span><span class="a">Completed</span></div>
+        <div class="card"><b>Clash Squad 1v1</b><small>Match finished</small><br><span class="tag">Played</span></div>
+        <div class="card"><b>Battle Royale Duo</b><small>Match cancelled</small><br><span class="tag">Entry fee refunded</span></div></div>
+    </div></div></div>
   </div>
 </div></section>
 
-<section id="how" style="background:var(--ink2);position:relative;z-index:1"><div class="wrap">
-  <h2>From install to match day.</h2>
-  <p class="sub">Three steps. Most players are in a match within five minutes.</p>
-  <div class="steps">
-    <div class="step"><h3>Create your account</h3><p>Sign up with your email. If you forget your password, a code arrives in your inbox.</p></div>
-    <div class="step"><h3>Add money and join</h3><p>Fund your wallet, open a tournament, and take your slot.</p></div>
-    <div class="step"><h3>Play and collect</h3><p>Open the room, play, and see your result and winnings in the app.</p></div>
+<section class="alt"><div class="wrap">
+  <h2 class="wipe">From install to match day.</h2>
+  <div class="tl" id="tl"><div class="fill"></div>
+    <div class="st"><h3>Create your account</h3><p>Sign up with your email. If you forget your password, a code arrives in your inbox.</p></div>
+    <div class="st"><h3>Add money and join</h3><p>Fund your wallet, open a tournament, and take your slot.</p></div>
+    <div class="st"><h3>Play and collect</h3><p>Open the room, play, and see your result and winnings in the app.</p></div>
   </div>
 </div></section>
 
 <section class="final"><div class="wrap">
-  <h2>Get NOX ESPORTS on your phone.</h2>
-  <p class="sub">Download the APK, open it, and you are ready to join your first match.</p>
-  <a class="btn" href="nox-esport.apk" download>Download for Android</a>
+  <h2 class="wipe">Get NOX ESPORTS on your phone.</h2>
+  <p class="sub">Download the APK, open it, and join your first match.</p>
+  <a class="btn mag" href="nox-esport.apk" download>Download for Android</a>
   <div class="faq">
     <details><summary>How do I install it?</summary><p>Open the downloaded file. If your phone asks, allow installs from this source. If Play Protect warns you, choose Install anyway. The app is not on the Play Store.</p></details>
     <details><summary>Does it work on iPhone?</summary><p>Not yet. The download is an Android app.</p></details>
@@ -174,50 +227,59 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 
 <script>
 (function(){
+var $=function(s,r){return(r||document).querySelector(s)},$$=function(s,r){return[].slice.call((r||document).querySelectorAll(s))};
 var rm=matchMedia('(prefers-reduced-motion:reduce)').matches;
-var nav=document.getElementById('nav');
-addEventListener('scroll',function(){nav.classList.toggle('on',scrollY>10)},{passive:true});
-
-// scrolling mode tape
-var words=['Battle Royale','Clash Squad','Lone Wolf','Solo','Duo','Squad'],h='';
-for(var i=0;i<24;i++)h+='<span>'+words[i%words.length]+'</span>';
-document.getElementById('tape').innerHTML=h;
-
+// title: letters rise one by one
+var h=$('#h1'),t=h.textContent,i=0;h.textContent='';
+t.split(' ').forEach(function(w){var s=document.createElement('span');s.className='w';s.setAttribute('aria-hidden','true');
+  w.split('').forEach(function(ch){var c=document.createElement('span');c.className='c';c.style.setProperty('--i',i++);c.textContent=ch;s.appendChild(c)});h.appendChild(s)});
+// ticker
+var words=['Battle Royale','Clash Squad','Lone Wolf','Solo','Duo','Squad'],x='';
+for(var k=0;k<24;k++)x+='<span>'+words[k%6]+'</span>';$('#tape').innerHTML=x;
 // countdown (sample)
-var s=14*60+32,cd=document.getElementById('cd');
-if(!rm)setInterval(function(){s=s>0?s-1:14*60+32;var m=Math.floor(s/60),r=s%60;cd.textContent='00:'+String(m).padStart(2,'0')+':'+String(r).padStart(2,'0')},1000);
-
-// card spotlight follows pointer
-document.querySelectorAll('.card').forEach(function(c){
-  c.addEventListener('pointermove',function(e){var b=c.getBoundingClientRect();c.style.setProperty('--x',e.clientX-b.left+'px');c.style.setProperty('--y',e.clientY-b.top+'px')});
-});
-
-// phone tilt
-var ph=document.getElementById('phone');
-if(!rm&&matchMedia('(pointer:fine)').matches){
-  addEventListener('pointermove',function(e){
-    var x=(e.clientX/innerWidth-.5)*2,y=(e.clientY/innerHeight-.5)*2;
-    ph.style.transform='rotateY('+(x*10-8)+'deg) rotateX('+(-y*6)+'deg)';
+var s=872,cd=$('#cd');setInterval(function(){s=s>0?s-1:872;cd.textContent='00:'+String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')},1000);
+// wipe reveals
+var io=new IntersectionObserver(function(e){e.forEach(function(n){if(n.isIntersecting){n.target.classList.add('in');io.unobserve(n.target)}})},{threshold:.2});
+$$('.wipe').forEach(function(n){io.observe(n)});
+// story: beat <-> phone screen
+var beats=$$('.beat'),scrs=$$('#sp .scr');
+function show(n){beats.forEach(function(b,j){b.classList.toggle('on',j==n)});scrs.forEach(function(c,j){c.classList.toggle('on',j==n)})}
+show(0);
+var bo=new IntersectionObserver(function(e){e.forEach(function(n){if(n.isIntersecting)show(+n.target.dataset.s)})},{rootMargin:'-45% 0px -45% 0px'});
+beats.forEach(function(b){bo.observe(b)});
+// scroll-driven bits
+var bar=$('#bar'),nav=$('#nav'),sk=$('#sk'),tl=$('#tl'),sts=$$('.st'),hp=$('#hp'),bg=$('.bgn'),last=scrollY,vel=0,mx=0,my=0;
+function frame(){
+  var y=scrollY,vh=innerHeight,max=document.documentElement.scrollHeight-vh;
+  bar.style.transform='scaleX('+(max>0?y/max:0)+')';
+  nav.classList.toggle('on',y>10);
+  var d=y-last;last=y;vel+=(d-vel)*.15;
+  if(!rm)sk.style.transform='skewX('+Math.max(-14,Math.min(14,-vel*.6))+'deg)';
+  if(!rm)bg.style.translate='0 '+(y*-.08)+'px';
+  hp.style.transform='rotateY('+(Math.min(y/vh,1)*-18+mx*8-6)+'deg) rotateX('+(my*-5)+'deg)';
+  var r=tl.getBoundingClientRect(),p=Math.max(0,Math.min(1,(vh*.62-r.top)/r.height));
+  tl.style.setProperty('--p',p);
+  sts.forEach(function(e,j){e.classList.toggle('on',vh*.7>e.getBoundingClientRect().top)});
+  requestAnimationFrame(frame);
+}
+frame();
+if(matchMedia('(pointer:fine)').matches){
+  addEventListener('pointermove',function(e){mx=e.clientX/innerWidth-.5;my=e.clientY/innerHeight-.5});
+  $$('.mag').forEach(function(b){
+    b.addEventListener('pointermove',function(e){var r=b.getBoundingClientRect();b.style.setProperty('--mx',(e.clientX-r.left-r.width/2)*.18+'px');b.style.setProperty('--my',(e.clientY-r.top-r.height/2)*.28+'px')});
+    b.addEventListener('pointerleave',function(){b.style.setProperty('--mx','0px');b.style.setProperty('--my','0px')});
   });
 }
-
 // embers
-var cv=document.getElementById('embers');
+var cv=$('#embers');
 if(!rm){
   var c=cv.getContext('2d'),W,H,P=[];
-  function size(){W=cv.width=innerWidth;H=cv.height=innerHeight}
-  size();addEventListener('resize',size);
-  for(var k=0;k<48;k++)P.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*2+.6,v:Math.random()*.5+.2,d:Math.random()*6.28});
-  (function loop(){
-    c.clearRect(0,0,W,H);
-    P.forEach(function(p){
-      p.y-=p.v;p.d+=.01;p.x+=Math.sin(p.d)*.3;
-      if(p.y<-10){p.y=H+10;p.x=Math.random()*W}
-      c.beginPath();c.arc(p.x,p.y,p.r,0,6.28);
-      c.fillStyle='rgba(255,'+(130+p.r*30|0)+',40,'+(.15+p.r*.12)+')';c.fill();
-    });
-    requestAnimationFrame(loop);
-  })();
+  function size(){W=cv.width=innerWidth;H=cv.height=innerHeight}size();addEventListener('resize',size);
+  for(var q=0;q<(innerWidth<700?24:50);q++)P.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*2+.6,v:Math.random()*.5+.2,d:Math.random()*6.28});
+  (function loop(){c.clearRect(0,0,W,H);
+    P.forEach(function(p){p.y-=p.v+Math.abs(vel)*.12;p.d+=.01;p.x+=Math.sin(p.d)*.3;if(p.y<-10){p.y=H+10;p.x=Math.random()*W}
+      c.beginPath();c.arc(p.x,p.y,p.r,0,6.28);c.fillStyle='rgba(255,'+(130+p.r*30|0)+',40,'+(.15+p.r*.12)+')';c.fill()});
+    requestAnimationFrame(loop)})();
 }
 })();
 </script>
