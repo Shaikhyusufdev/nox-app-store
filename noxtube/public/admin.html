@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>NOX TUBE Admin</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: system-ui, sans-serif; background:#0d0d0d; color:#eee; margin:0; padding:16px;
+         max-width:760px; margin-inline:auto; }
+  h1 { font-size:20px; } h2 { font-size:16px; margin-top:28px; }
+  input, button { font:inherit; padding:10px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:#eee; }
+  button { background:#e50914; border-color:#e50914; cursor:pointer; }
+  button.sec { background:#222; border-color:#444; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
+  .row input { flex:1; min-width:140px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td, th { border-bottom:1px solid #2a2a2a; padding:8px 4px; text-align:left; vertical-align:top; }
+  .ok { color:#4caf50; } .bad { color:#ff9800; }
+  .scroll { overflow-x:auto; }
+  #msg { margin:10px 0; min-height:20px; }
+  .hide { display:none; }
+</style>
+</head>
+<body>
+<h1>NOX TUBE Admin</h1>
+<div id="msg"></div>
+
+<div id="loginBox">
+  <div class="row">
+    <input id="pass" type="password" placeholder="Admin password">
+    <button id="loginBtn">Login</button>
+  </div>
+</div>
+
+<div id="panel" class="hide">
+  <h2>YouTube Data API keys (Shorts)</h2>
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Label</th><th>Key</th><th>Status</th><th>Calls</th><th></th></tr></thead>
+      <tbody id="keys"></tbody>
+    </table>
+  </div>
+  <div class="row">
+    <input id="newLabel" placeholder="Label (optional)">
+    <input id="newKey" placeholder="AIza...">
+    <button id="addBtn">Add key</button>
+  </div>
+
+  <h2>App download link (APK)</h2>
+  <div class="row">
+    <input id="apk" placeholder="https://...">
+    <button id="apkBtn">Save</button>
+  </div>
+</div>
+
+<script>
+var PASS = sessionStorage.getItem('nt_pass') || '';
+function $(id) { return document.getElementById(id); }
+function show(msg, bad) {
+  var m = $('msg'); m.textContent = msg; m.style.color = bad ? '#ff6b6b' : '#4caf50';
+}
+async function api(path, method, body) {
+  var res = await fetch(path, {
+    method: method || 'GET',
+    headers: { 'Content-Type': 'application/json', 'x-admin-password': PASS },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  var data = {};
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+}
+function cell(tr, text, cls) {
+  var td = document.createElement('td');
+  td.textContent = text;
+  if (cls) td.className = cls;
+  tr.appendChild(td);
+  return td;
+}
+function btn(label, fn, sec) {
+  var b = document.createElement('button');
+  b.textContent = label;
+  if (sec) b.className = 'sec';
+  b.style.marginRight = '4px';
+  b.onclick = fn;
+  return b;
+}
+async function loadKeys() {
+  var keys = await api('/api/admin/keys');
+  var body = $('keys');
+  body.textContent = '';
+  keys.forEach(function (k) {
+    var tr = document.createElement('tr');
+    cell(tr, k.label || '-');
+    cell(tr, k.key_hint);
+    var until = k.exhausted_until ? new Date(k.exhausted_until) : null;
+    var st, cls;
+    if (!k.enabled) { st = 'Disabled'; cls = 'bad'; }
+    else if (until && until > new Date()) { st = 'Paused until ' + until.toLocaleString() + (k.last_error ? ' (' + k.last_error + ')' : ''); cls = 'bad'; }
+    else { st = 'Active'; cls = 'ok'; }
+    cell(tr, st, cls);
+    cell(tr, String(k.uses));
+    var td = document.createElement('td');
+    td.appendChild(btn(k.enabled ? 'Disable' : 'Enable', async function () {
+      try { await api('/api/admin/keys/' + k.id, 'PATCH', { enabled: !k.enabled }); loadKeys(); } catch (e) { show(e.message, true); }
+    }, true));
+    td.appendChild(btn('Reset', async function () {
+      try { await api('/api/admin/keys/' + k.id, 'PATCH', { reset: true }); loadKeys(); } catch (e) { show(e.message, true); }
+    }, true));
+    td.appendChild(btn('Delete', async function () {
+      if (!confirm('Delete this key?')) return;
+      try { await api('/api/admin/keys/' + k.id, 'DELETE'); loadKeys(); } catch (e) { show(e.message, true); }
+    }));
+    tr.appendChild(td);
+    body.appendChild(tr);
+  });
+}
+async function loadConfig() {
+  var c = await (await fetch('/api/config')).json();
+  $('apk').value = c.apk_url || '';
+}
+async function start() {
+  await loadKeys();
+  await loadConfig();
+  $('loginBox').classList.add('hide');
+  $('panel').classList.remove('hide');
+  show('');
+}
+$('loginBtn').onclick = async function () {
+  PASS = $('pass').value;
+  try {
+    await api('/api/admin/login', 'POST', { password: PASS });
+    sessionStorage.setItem('nt_pass', PASS);
+    await start();
+  } catch (e) { show('Password galat hai', true); }
+};
+$('addBtn').onclick = async function () {
+  try {
+    await api('/api/admin/keys', 'POST', { label: $('newLabel').value, api_key: $('newKey').value });
+    $('newKey').value = ''; $('newLabel').value = '';
+    show('Key add ho gayi');
+    loadKeys();
+  } catch (e) { show(e.message, true); }
+};
+$('apkBtn').onclick = async function () {
+  try { await api('/api/admin/config', 'POST', { apk_url: $('apk').value }); show('APK link save ho gaya'); }
+  catch (e) { show(e.message, true); }
+};
+if (PASS) { start().catch(function () { sessionStorage.removeItem('nt_pass'); }); }
+</script>
+</body>
+</html>
