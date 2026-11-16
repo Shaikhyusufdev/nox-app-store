@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__ | NOX TUBE</title>
+<meta property="og:site_name" content="NOX TUBE">
+<meta property="og:title" content="__TITLE__">
+<meta property="og:description" content="Watch on NOX TUBE">
+<meta property="og:url" content="__URL__">
+<meta property="og:image" content="__IMAGE__">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; font-family: system-ui, sans-serif; background:#0d0d0d; color:#fff;
+         display:flex; justify-content:center; padding:20px; }
+  .card { width:100%; max-width:480px; }
+  img.thumb { width:100%; border-radius:12px; aspect-ratio:16/9; object-fit:cover; background:#222; display:none; }
+  h1 { font-size:18px; line-height:1.35; margin:14px 0 6px; }
+  p { color:#aaa; font-size:14px; }
+  a.btn { display:block; text-align:center; text-decoration:none; padding:14px; border-radius:10px;
+          font-weight:700; margin-top:12px; background:#e50914; color:#fff; }
+  a.sec { background:#222; border:1px solid #444; }
+  .hide { display:none !important; }
+</style>
+</head>
+<body>
+<div class="card">
+  <img id="thumb" class="thumb" alt="">
+  <h1>__TITLE__</h1>
+  <p>Ye video NOX TUBE app mein khulega.</p>
+  <a id="open" class="btn" href="#">Open in NOX TUBE</a>
+  <a id="dl" class="btn sec hide" href="#">Download NOX TUBE app</a>
+</div>
+<script>
+(function () {
+  var id = new URLSearchParams(location.search).get('v') || '';
+  var valid = /^[A-Za-z0-9_-]{11}$/.test(id);
+  var open = document.getElementById('open');
+  if (!valid) { open.classList.add('hide'); }
+  else {
+    var t = document.getElementById('thumb');
+    t.src = 'https://i.ytimg.com/vi/' + id + '/hqdefault.jpg';
+    t.style.display = 'block';
+    var intent = 'intent://watch?v=' + id +
+      '#Intent;scheme=noxtube;package=com.noxteam.nox_tube;end';
+    open.href = intent;
+    if (/Android/i.test(navigator.userAgent)) {
+      setTimeout(function () { location.href = intent; }, 400);
+    }
+  }
+  fetch('/api/config').then(function (r) { return r.json(); }).then(function (c) {
+    if (c && c.apk_url) {
+      var dl = document.getElementById('dl');
+      dl.href = c.apk_url;
+      dl.classList.remove('hide');
+    }
+  }).catch(function () {});
+})();
+</script>
+</body>
+</html>
