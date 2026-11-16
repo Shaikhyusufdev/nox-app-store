@@ -10,8 +10,13 @@ const PORT = process.env.PORT || 3000;
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 const APP_PACKAGE = 'com.noxteam.nox_tube';
-const SHORTS_CACHE_MINUTES = 30;
+const SHORTS_CACHE_MINUTES = 720;
 const MAX_SHORT_SECONDS = 60;
+const SHORT_TOPICS = [
+  '#shorts', 'trending shorts', 'viral shorts', 'funny shorts', 'comedy shorts',
+  'music shorts', 'gaming shorts', 'cricket shorts', 'food shorts', 'travel shorts',
+  'tech shorts', 'dance shorts', 'news shorts'
+];
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
 app.set('trust proxy', true);
@@ -141,7 +146,8 @@ app.get('/api/shorts', async (req, res) => {
   try {
     const region = /^[A-Za-z]{2}$/.test(String(req.query.region || ''))
       ? String(req.query.region).toUpperCase() : 'IN';
-    const q = String(req.query.q || '#shorts').slice(0, 80);
+       const qReq = String(req.query.q || '#shorts').slice(0, 80);
+    const q = SHORT_TOPICS.includes(qReq) ? qReq : '#shorts';
     const pageToken = req.query.pageToken ? String(req.query.pageToken).slice(0, 120) : '';
 
     const cacheKey = `shorts:${region}:${q}:${pageToken}`;
