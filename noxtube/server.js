@@ -24,7 +24,7 @@ const DEVICE_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const SETTING_KEYS = [
   'apk_url',
   'maintenance_on', 'maintenance_message',
-  'latest_version_code', 'min_version_code', 'update_url', 'update_message',
+    'update_enabled', 'latest_version_code', 'min_version_code', 'update_url', 'update_message',
   'join_enabled', 'telegram_url', 'join_title', 'join_message',
   'broadcast_active', 'broadcast_id', 'broadcast_title', 'broadcast_message',
   'broadcast_btn_text', 'broadcast_btn_url'
@@ -276,8 +276,8 @@ app.post('/api/app/open', async (req, res) => {
         message: c.maintenance_message || 'App maintenance par hai. Thodi der baad try karo.'
       },
       update: {
-        available: latest > versionCode,
-        force: min > versionCode,
+                available: isTrue(c.update_enabled) && latest > versionCode,
+                force: isTrue(c.update_enabled) && min > versionCode,
         latest_code: latest,
         url: c.update_url || c.apk_url || '',
         message: c.update_message || 'Naya version available hai.'
