@@ -451,7 +451,7 @@ app.post('/api/admin/notify', checkAdmin, async (req, res) => {
     await getFcm().send({
       topic: 'all',
       notification: { title, body },
-      android: { priority: 'high', notification: { channelId: 'nox_general' } }
+            android: { priority: 'high' }
     });
   } catch (err) {
     status = 'failed: ' + String(err.message).slice(0, 150);
