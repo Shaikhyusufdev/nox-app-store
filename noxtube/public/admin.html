@@ -89,7 +89,8 @@
 
     <div class="card">
       <h2>App update popup</h2>
-      <label>Latest version code (pubspec mein version: 1.0.0+<b>5</b> ka 5)</label>
+            <div class="switch"><input type="checkbox" id="update_enabled"><span>Update popup ON</span></div>
+      <label>Latest version code (sirf + ke baad ka number, jaise 1.0.0+<b>5</b> ka 5)</label>
       <input type="number" id="latest_version_code" placeholder="e.g. 5">
       <label>Minimum version code (isse purane users ko force update, popup band nahi hoga)</label>
       <input type="number" id="min_version_code" placeholder="0 = force nahi">
@@ -97,7 +98,7 @@
       <input id="update_url" placeholder="APK / Play Store link">
       <label>Update message</label>
       <textarea id="update_message" placeholder="Naya version aa gaya hai, update karo."></textarea>
-      <div class="row"><button data-save="latest_version_code,min_version_code,update_url,update_message">Save</button></div>
+      <div class="row"><button data-save="update_enabled,latest_version_code,min_version_code,update_url,update_message">Save</button></div>
       <div class="hint">Latest &gt; user ka version = skippable popup. Minimum &gt; user ka version = force update.</div>
     </div>
 
@@ -217,7 +218,7 @@ var loadStats = guard(async function () {
 $('refreshStats').onclick = loadStats;
 
 // ----- settings -----
-var BOOLS = ['maintenance_on', 'join_enabled'];
+var BOOLS = ['maintenance_on', 'join_enabled', 'update_enabled'];
 var settings = {};
 async function loadSettings() {
   settings = await api('/api/admin/settings');
