@@ -18,6 +18,17 @@ const SHORT_TOPICS = [
   'tech shorts', 'dance shorts', 'news shorts'
 ];
 const VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+const DEVICE_ID_RE = /^[A-Za-z0-9_-]{8,64}$/;
+
+// Admin se badalne wali settings (sirf yehi keys allowed)
+const SETTING_KEYS = [
+  'apk_url',
+  'maintenance_on', 'maintenance_message',
+  'latest_version_code', 'min_version_code', 'update_url', 'update_message',
+  'join_enabled', 'telegram_url', 'join_title', 'join_message',
+  'broadcast_active', 'broadcast_id', 'broadcast_title', 'broadcast_message',
+  'broadcast_btn_text', 'broadcast_btn_url'
+];
 
 app.set('trust proxy', true);
 app.use(cors());
@@ -51,6 +62,14 @@ async function setConfig(key, value) {
   if (error) throw error;
 }
 
+async function getAllConfig() {
+  const { data, error } = await supabase.from('noxtube_config').select('key, value');
+  if (error) throw error;
+  const out = {};
+  (data || []).forEach(r => { out[r.key] = r.value == null ? '' : String(r.value); });
+  return out;
+}
+
 async function cacheGet(key) {
   try {
     const { data } = await supabase.from('noxtube_cache').select('value, expires_at').eq('key', key).maybeSingle();
@@ -81,6 +100,27 @@ function parseIsoDuration(iso) {
   const m = /^P(?:\d+D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(iso || '');
   if (!m) return 0;
   return (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0);
+}
+
+function isTrue(v) { return String(v) === 'true'; }
+function toInt(v) { return parseInt(v, 10) || 0; }
+
+// ---------- Firebase (push notification) ----------
+let fcm = null;
+function getFcm() {
+  if (fcm) return fcm;
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!raw) {
+    const e = new Error('FIREBASE_SERVICE_ACCOUNT env set nahi hai (Vercel mein add karo)');
+    e.status = 503;
+    throw e;
+  }
+  const admin = require('firebase-admin');
+  if (!admin.apps.length) {
+    admin.initializeApp({ credential: admin.credential.cert(JSON.parse(raw)) });
+  }
+  fcm = admin.messaging();
+  return fcm;
 }
 
 // ---------- YouTube Data API with key rotation ----------
@@ -146,7 +186,7 @@ app.get('/api/shorts', async (req, res) => {
   try {
     const region = /^[A-Za-z]{2}$/.test(String(req.query.region || ''))
       ? String(req.query.region).toUpperCase() : 'IN';
-       const qReq = String(req.query.q || '#shorts').slice(0, 80);
+    const qReq = String(req.query.q || '#shorts').slice(0, 80);
     const q = SHORT_TOPICS.includes(qReq) ? qReq : '#shorts';
     const pageToken = req.query.pageToken ? String(req.query.pageToken).slice(0, 120) : '';
 
@@ -198,6 +238,64 @@ app.get('/api/shorts', async (req, res) => {
 app.get('/api/config', async (req, res) => {
   try {
     res.json({ apk_url: await getConfig('apk_url') });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// App open: user register/update + saari app control settings ek call mein.
+// Body: { device_id, version_code }
+app.post('/api/app/open', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const deviceId = String(body.device_id || '');
+    const versionCode = toInt(body.version_code);
+
+    if (DEVICE_ID_RE.test(deviceId)) {
+      const now = new Date().toISOString();
+      const { data: existing } = await supabase
+        .from('noxtube_users').select('device_id').eq('device_id', deviceId).maybeSingle();
+      if (existing) {
+        await supabase.from('noxtube_users')
+          .update({ last_seen: now, app_version: versionCode }).eq('device_id', deviceId);
+      } else {
+        await supabase.from('noxtube_users')
+          .insert([{ device_id: deviceId, app_version: versionCode, first_seen: now, last_seen: now }]);
+      }
+    }
+
+    const c = await getAllConfig();
+    const latest = toInt(c.latest_version_code);
+    const min = toInt(c.min_version_code);
+    const hasBroadcast = isTrue(c.broadcast_active) && (c.broadcast_title || c.broadcast_message);
+
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      maintenance: {
+        on: isTrue(c.maintenance_on),
+        message: c.maintenance_message || 'App maintenance par hai. Thodi der baad try karo.'
+      },
+      update: {
+        available: latest > versionCode,
+        force: min > versionCode,
+        latest_code: latest,
+        url: c.update_url || c.apk_url || '',
+        message: c.update_message || 'Naya version available hai.'
+      },
+      join: {
+        enabled: isTrue(c.join_enabled) && !!c.telegram_url,
+        url: c.telegram_url || '',
+        title: c.join_title || 'Join our community',
+        message: c.join_message || 'Updates aur support ke liye Telegram join karo.'
+      },
+      broadcast: hasBroadcast ? {
+        id: c.broadcast_id || '0',
+        title: c.broadcast_title || '',
+        message: c.broadcast_message || '',
+        button_text: c.broadcast_btn_text || '',
+        button_url: c.broadcast_btn_url || ''
+      } : null
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -257,6 +355,120 @@ app.post('/api/admin/login', (req, res) => {
   res.status(401).json({ success: false });
 });
 
+app.get('/api/admin/stats', checkAdmin, async (req, res) => {
+  try {
+    const count = async (since) => {
+      let q = supabase.from('noxtube_users').select('device_id', { count: 'exact', head: true });
+      if (since) q = q.gte(since.col, since.val);
+      const { count: n, error } = await q;
+      if (error) throw error;
+      return n || 0;
+    };
+    const ago = (ms) => new Date(Date.now() - ms).toISOString();
+    const startOfDay = new Date(); startOfDay.setUTCHours(0, 0, 0, 0);
+    const [total, active24h, active7d, newToday] = await Promise.all([
+      count(null),
+      count({ col: 'last_seen', val: ago(86400000) }),
+      count({ col: 'last_seen', val: ago(7 * 86400000) }),
+      count({ col: 'first_seen', val: startOfDay.toISOString() })
+    ]);
+    res.json({ total, active24h, active7d, newToday });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/settings', checkAdmin, async (req, res) => {
+  try {
+    const c = await getAllConfig();
+    const out = {};
+    SETTING_KEYS.forEach(k => { out[k] = c[k] || ''; });
+    res.json(out);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/settings', checkAdmin, async (req, res) => {
+  try {
+    const body = req.body || {};
+    for (const k of Object.keys(body)) {
+      if (!SETTING_KEYS.includes(k)) continue;
+      let v = String(body[k] == null ? '' : body[k]).trim().slice(0, 500);
+      if ((k === 'apk_url' || k === 'update_url' || k === 'telegram_url' || k === 'broadcast_btn_url') &&
+          v && !/^https:\/\//i.test(v)) {
+        return res.status(400).json({ error: `${k}: link https:// se shuru hona chahiye` });
+      }
+      await setConfig(k, v);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Sab users ko in-app popup bhejo (har user ko ek hi baar dikhega)
+app.post('/api/admin/broadcast', checkAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const title = String(b.title || '').trim().slice(0, 100);
+    const message = String(b.message || '').trim().slice(0, 500);
+    const btnText = String(b.button_text || '').trim().slice(0, 30);
+    const btnUrl = String(b.button_url || '').trim();
+    if (!title && !message) return res.status(400).json({ error: 'Title ya message likho' });
+    if (btnUrl && !/^https:\/\//i.test(btnUrl)) {
+      return res.status(400).json({ error: 'Button link https:// se shuru hona chahiye' });
+    }
+    await setConfig('broadcast_id', String(Date.now()));
+    await setConfig('broadcast_title', title);
+    await setConfig('broadcast_message', message);
+    await setConfig('broadcast_btn_text', btnText);
+    await setConfig('broadcast_btn_url', btnUrl);
+    await setConfig('broadcast_active', 'true');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/broadcast/stop', checkAdmin, async (req, res) => {
+  try {
+    await setConfig('broadcast_active', 'false');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Push notification sab users ko (FCM topic "all")
+app.post('/api/admin/notify', checkAdmin, async (req, res) => {
+  const b = req.body || {};
+  const title = String(b.title || '').trim().slice(0, 100);
+  const body = String(b.body || '').trim().slice(0, 300);
+  if (!title || !body) return res.status(400).json({ error: 'Title aur message dono chahiye' });
+  let status = 'sent';
+  try {
+    await getFcm().send({
+      topic: 'all',
+      notification: { title, body },
+      android: { priority: 'high', notification: { channelId: 'nox_general' } }
+    });
+  } catch (err) {
+    status = 'failed: ' + String(err.message).slice(0, 150);
+    await supabase.from('noxtube_notifications').insert([{ title, body, status }]);
+    return res.status(err.status || 500).json({ error: err.message });
+  }
+  await supabase.from('noxtube_notifications').insert([{ title, body, status }]);
+  res.json({ success: true });
+});
+
+app.get('/api/admin/notifications', checkAdmin, async (req, res) => {
+  const { data, error } = await supabase
+    .from('noxtube_notifications').select('*').order('id', { ascending: false }).limit(10);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
 app.get('/api/admin/keys', checkAdmin, async (req, res) => {
   const { data, error } = await supabase
     .from('noxtube_api_keys')
@@ -304,6 +516,7 @@ app.delete('/api/admin/keys/:id', checkAdmin, async (req, res) => {
   res.json({ success: true });
 });
 
+// Purana endpoint (admin.html ab /api/admin/settings use karta hai, ye compatibility ke liye)
 app.post('/api/admin/config', checkAdmin, async (req, res) => {
   try {
     const apk = String((req.body || {}).apk_url || '').trim();
