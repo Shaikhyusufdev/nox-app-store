@@ -6,28 +6,47 @@
 <meta name="robots" content="noindex">
 <title>NOX TUBE Admin</title>
 <style>
-  :root { color-scheme: dark; }
-  body { font-family: system-ui, sans-serif; background:#0d0d0d; color:#eee; margin:0; padding:16px;
-         max-width:760px; margin-inline:auto; }
-  h1 { font-size:20px; } h2 { font-size:16px; margin-top:28px; }
-  input, button { font:inherit; padding:10px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:#eee; }
-  button { background:#e50914; border-color:#e50914; cursor:pointer; }
-  button.sec { background:#222; border-color:#444; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
+  :root { color-scheme: dark; --bg:#0d0d0d; --card:#161616; --line:#2a2a2a; --red:#e50914; --txt:#eee; --mut:#999; }
+  * { box-sizing:border-box; }
+  body { font-family:system-ui,sans-serif; background:var(--bg); color:var(--txt); margin:0; }
+  .wrap { max-width:860px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:0; }
+  h2 { font-size:15px; margin:0 0 12px; }
+  header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  input, textarea, button, select { font:inherit; padding:10px; border-radius:8px; border:1px solid #333; background:#1a1a1a; color:var(--txt); }
+  textarea { width:100%; min-height:70px; resize:vertical; }
+  input[type=text], input[type=password], input[type=number], input:not([type]) { width:100%; }
+  button { background:var(--red); border-color:var(--red); cursor:pointer; font-weight:600; }
+  button.sec { background:#222; border-color:#444; font-weight:500; }
+  button:disabled { opacity:.5; }
+  label { display:block; font-size:12px; color:var(--mut); margin:10px 0 4px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+  .tabs { display:flex; gap:6px; overflow-x:auto; margin-bottom:14px; padding-bottom:4px; }
+  .tab { background:#1a1a1a; border-color:#333; white-space:nowrap; font-weight:500; }
+  .tab.on { background:var(--red); border-color:var(--red); }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .stat { background:#1a1a1a; border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .stat b { display:block; font-size:28px; }
+  .stat span { font-size:12px; color:var(--mut); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; align-items:center; }
   .row input { flex:1; min-width:140px; }
+  .switch { display:flex; align-items:center; gap:10px; margin:6px 0; }
+  .switch input { width:20px; height:20px; }
+  .hint { font-size:12px; color:var(--mut); margin-top:6px; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
-  td, th { border-bottom:1px solid #2a2a2a; padding:8px 4px; text-align:left; vertical-align:top; }
+  td, th { border-bottom:1px solid var(--line); padding:8px 4px; text-align:left; vertical-align:top; }
   .ok { color:#4caf50; } .bad { color:#ff9800; }
   .scroll { overflow-x:auto; }
-  #msg { margin:10px 0; min-height:20px; }
-  .hide { display:none; }
+  #msg { position:sticky; top:0; z-index:5; padding:10px; border-radius:8px; margin-bottom:10px; display:none; background:#1a1a1a; border:1px solid #333; }
+  .hide { display:none !important; }
 </style>
 </head>
 <body>
-<h1>NOX TUBE Admin</h1>
+<div class="wrap">
+<header><h1>NOX TUBE Admin</h1><button class="sec hide" id="logoutBtn">Logout</button></header>
 <div id="msg"></div>
 
-<div id="loginBox">
+<div id="loginBox" class="card">
   <div class="row">
     <input id="pass" type="password" placeholder="Admin password">
     <button id="loginBtn">Login</button>
@@ -35,31 +54,138 @@
 </div>
 
 <div id="panel" class="hide">
-  <h2>YouTube Data API keys (Shorts)</h2>
-  <div class="scroll">
-    <table>
-      <thead><tr><th>Label</th><th>Key</th><th>Status</th><th>Calls</th><th></th></tr></thead>
-      <tbody id="keys"></tbody>
-    </table>
-  </div>
-  <div class="row">
-    <input id="newLabel" placeholder="Label (optional)">
-    <input id="newKey" placeholder="AIza...">
-    <button id="addBtn">Add key</button>
+  <div class="tabs" id="tabs">
+    <button class="tab on" data-t="dash">Dashboard</button>
+    <button class="tab" data-t="control">App Control</button>
+    <button class="tab" data-t="cast">Popup to all</button>
+    <button class="tab" data-t="push">Notification</button>
+    <button class="tab" data-t="keys">Shorts API keys</button>
   </div>
 
-  <h2>App download link (APK)</h2>
-  <div class="row">
-    <input id="apk" placeholder="https://...">
-    <button id="apkBtn">Save</button>
-  </div>
+  <!-- DASHBOARD -->
+  <section id="t-dash">
+    <div class="card">
+      <h2>Users</h2>
+      <div class="stats">
+        <div class="stat"><b id="sTotal">-</b><span>Total users</span></div>
+        <div class="stat"><b id="sNew">-</b><span>New today</span></div>
+        <div class="stat"><b id="sDay">-</b><span>Active (24h)</span></div>
+        <div class="stat"><b id="sWeek">-</b><span>Active (7 days)</span></div>
+      </div>
+      <div class="row"><button class="sec" id="refreshStats">Refresh</button></div>
+      <div class="hint">User = ek device jo app khol chuka hai (device ID se gina jata hai). App reinstall karne par naya user ban sakta hai.</div>
+    </div>
+  </section>
+
+  <!-- APP CONTROL -->
+  <section id="t-control" class="hide">
+    <div class="card">
+      <h2>Maintenance mode (Force close)</h2>
+      <div class="switch"><input type="checkbox" id="maintenance_on"><span>Maintenance ON (app band, sirf message dikhega)</span></div>
+      <label>Message</label>
+      <textarea id="maintenance_message" placeholder="App maintenance par hai. Thodi der baad aao."></textarea>
+      <div class="row"><button data-save="maintenance_on,maintenance_message">Save</button></div>
+    </div>
+
+    <div class="card">
+      <h2>App update popup</h2>
+      <label>Latest version code (pubspec mein version: 1.0.0+<b>5</b> ka 5)</label>
+      <input type="number" id="latest_version_code" placeholder="e.g. 5">
+      <label>Minimum version code (isse purane users ko force update, popup band nahi hoga)</label>
+      <input type="number" id="min_version_code" placeholder="0 = force nahi">
+      <label>Update link (https://)</label>
+      <input id="update_url" placeholder="APK / Play Store link">
+      <label>Update message</label>
+      <textarea id="update_message" placeholder="Naya version aa gaya hai, update karo."></textarea>
+      <div class="row"><button data-save="latest_version_code,min_version_code,update_url,update_message">Save</button></div>
+      <div class="hint">Latest &gt; user ka version = skippable popup. Minimum &gt; user ka version = force update.</div>
+    </div>
+
+    <div class="card">
+      <h2>Join Telegram popup (har app open par)</h2>
+      <div class="switch"><input type="checkbox" id="join_enabled"><span>Popup ON</span></div>
+      <label>Telegram link (https://t.me/...)</label>
+      <input id="telegram_url" placeholder="https://t.me/yourchannel">
+      <label>Title</label>
+      <input id="join_title" placeholder="Join our community">
+      <label>Message</label>
+      <textarea id="join_message" placeholder="Updates aur support ke liye Telegram join karo."></textarea>
+      <div class="row"><button data-save="join_enabled,telegram_url,join_title,join_message">Save</button></div>
+      <div class="hint">Cross (X) se popup band hota hai, agli baar fir aayega. "Already joined" dabane par us user ko dobara nahi aayega.</div>
+    </div>
+
+    <div class="card">
+      <h2>APK download link</h2>
+      <div class="row"><input id="apk_url" placeholder="https://..."><button data-save="apk_url">Save</button></div>
+    </div>
+  </section>
+
+  <!-- BROADCAST -->
+  <section id="t-cast" class="hide">
+    <div class="card">
+      <h2>Sab users ko popup bhejo</h2>
+      <label>Title</label>
+      <input id="b_title" placeholder="Title">
+      <label>Message</label>
+      <textarea id="b_message" placeholder="Message"></textarea>
+      <label>Button text (optional)</label>
+      <input id="b_btn_text" placeholder="e.g. Open">
+      <label>Button link (optional, https://)</label>
+      <input id="b_btn_url" placeholder="https://...">
+      <div class="row">
+        <button id="castBtn">Send popup</button>
+        <button class="sec" id="castStopBtn">Stop popup</button>
+      </div>
+      <div class="hint" id="castState"></div>
+      <div class="hint">Popup user ko app khulte hi dikhega, har user ko sirf ek baar. Nayi send karne par sabko dobara dikhega.</div>
+    </div>
+  </section>
+
+  <!-- PUSH -->
+  <section id="t-push" class="hide">
+    <div class="card">
+      <h2>Push notification sender</h2>
+      <label>Title</label>
+      <input id="n_title" placeholder="Title">
+      <label>Message</label>
+      <textarea id="n_body" placeholder="Message"></textarea>
+      <div class="row"><button id="notifyBtn">Send to all users</button></div>
+      <div class="hint">App band ho tab bhi notification aata hai (Firebase FCM). Firebase setup ke bina "FIREBASE_SERVICE_ACCOUNT" error aayega.</div>
+    </div>
+    <div class="card">
+      <h2>Last 10 notifications</h2>
+      <div class="scroll"><table><thead><tr><th>Time</th><th>Title</th><th>Status</th></tr></thead><tbody id="nList"></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- KEYS -->
+  <section id="t-keys" class="hide">
+    <div class="card">
+      <h2>YouTube Data API keys (Shorts)</h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Label</th><th>Key</th><th>Status</th><th>Calls</th><th></th></tr></thead>
+          <tbody id="keys"></tbody>
+        </table>
+      </div>
+      <div class="row">
+        <input id="newLabel" placeholder="Label (optional)">
+        <input id="newKey" placeholder="AIza...">
+        <button id="addBtn">Add key</button>
+      </div>
+    </div>
+  </section>
+</div>
 </div>
 
 <script>
 var PASS = sessionStorage.getItem('nt_pass') || '';
 function $(id) { return document.getElementById(id); }
 function show(msg, bad) {
-  var m = $('msg'); m.textContent = msg; m.style.color = bad ? '#ff6b6b' : '#4caf50';
+  var m = $('msg');
+  if (!msg) { m.style.display = 'none'; return; }
+  m.style.display = 'block'; m.textContent = msg; m.style.color = bad ? '#ff6b6b' : '#4caf50';
+  clearTimeout(show.t); show.t = setTimeout(function () { m.style.display = 'none'; }, 4000);
 }
 async function api(path, method, body) {
   var res = await fetch(path, {
@@ -72,61 +198,128 @@ async function api(path, method, body) {
   if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
   return data;
 }
+function guard(fn) { return async function () { try { await fn.apply(this, arguments); } catch (e) { show(e.message, true); } }; }
+
+// ----- tabs -----
+document.querySelectorAll('.tab').forEach(function (b) {
+  b.onclick = function () {
+    document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('on', x === b); });
+    ['dash', 'control', 'cast', 'push', 'keys'].forEach(function (t) { $('t-' + t).classList.toggle('hide', t !== b.dataset.t); });
+  };
+});
+
+// ----- stats -----
+var loadStats = guard(async function () {
+  var s = await api('/api/admin/stats');
+  $('sTotal').textContent = s.total; $('sNew').textContent = s.newToday;
+  $('sDay').textContent = s.active24h; $('sWeek').textContent = s.active7d;
+});
+$('refreshStats').onclick = loadStats;
+
+// ----- settings -----
+var BOOLS = ['maintenance_on', 'join_enabled'];
+var settings = {};
+async function loadSettings() {
+  settings = await api('/api/admin/settings');
+  Object.keys(settings).forEach(function (k) {
+    var el = $(k); if (!el) return;
+    if (BOOLS.indexOf(k) >= 0) el.checked = settings[k] === 'true';
+    else el.value = settings[k];
+  });
+  $('b_title').value = settings.broadcast_title || '';
+  $('b_message').value = settings.broadcast_message || '';
+  $('b_btn_text').value = settings.broadcast_btn_text || '';
+  $('b_btn_url').value = settings.broadcast_btn_url || '';
+  $('castState').textContent = settings.broadcast_active === 'true' ? 'Status: popup ON hai' : 'Status: koi popup active nahi';
+}
+document.querySelectorAll('[data-save]').forEach(function (b) {
+  b.onclick = guard(async function () {
+    var body = {};
+    b.dataset.save.split(',').forEach(function (k) {
+      var el = $(k);
+      body[k] = BOOLS.indexOf(k) >= 0 ? String(el.checked) : el.value;
+    });
+    if (body.maintenance_on === 'true' && !confirm('Maintenance ON karne par saare users ka app band ho jayega. Pakka?')) return;
+    await api('/api/admin/settings', 'POST', body);
+    show('Save ho gaya'); loadSettings();
+  });
+});
+
+// ----- broadcast -----
+$('castBtn').onclick = guard(async function () {
+  if (!confirm('Ye popup sab users ko dikhega. Bhejna hai?')) return;
+  await api('/api/admin/broadcast', 'POST', {
+    title: $('b_title').value, message: $('b_message').value,
+    button_text: $('b_btn_text').value, button_url: $('b_btn_url').value
+  });
+  show('Popup bhej diya'); loadSettings();
+});
+$('castStopBtn').onclick = guard(async function () {
+  await api('/api/admin/broadcast/stop', 'POST'); show('Popup band kar diya'); loadSettings();
+});
+
+// ----- push -----
+var loadNotifs = guard(async function () {
+  var list = await api('/api/admin/notifications');
+  var body = $('nList'); body.textContent = '';
+  list.forEach(function (n) {
+    var tr = document.createElement('tr');
+    [new Date(n.created_at).toLocaleString(), n.title, n.status].forEach(function (t, i) {
+      var td = document.createElement('td'); td.textContent = t;
+      if (i === 2) td.className = t === 'sent' ? 'ok' : 'bad';
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+});
+$('notifyBtn').onclick = guard(async function () {
+  if (!confirm('Notification sab users ko jayega. Bhejna hai?')) return;
+  $('notifyBtn').disabled = true;
+  try {
+    await api('/api/admin/notify', 'POST', { title: $('n_title').value, body: $('n_body').value });
+    show('Notification bhej diya'); $('n_title').value = ''; $('n_body').value = '';
+  } finally { $('notifyBtn').disabled = false; loadNotifs(); }
+});
+
+// ----- keys -----
 function cell(tr, text, cls) {
-  var td = document.createElement('td');
-  td.textContent = text;
-  if (cls) td.className = cls;
-  tr.appendChild(td);
-  return td;
+  var td = document.createElement('td'); td.textContent = text;
+  if (cls) td.className = cls; tr.appendChild(td); return td;
 }
 function btn(label, fn, sec) {
-  var b = document.createElement('button');
-  b.textContent = label;
-  if (sec) b.className = 'sec';
-  b.style.marginRight = '4px';
-  b.onclick = fn;
-  return b;
+  var b = document.createElement('button'); b.textContent = label;
+  if (sec) b.className = 'sec'; b.style.marginRight = '4px'; b.onclick = guard(fn); return b;
 }
-async function loadKeys() {
+var loadKeys = guard(async function () {
   var keys = await api('/api/admin/keys');
-  var body = $('keys');
-  body.textContent = '';
+  var body = $('keys'); body.textContent = '';
   keys.forEach(function (k) {
     var tr = document.createElement('tr');
-    cell(tr, k.label || '-');
-    cell(tr, k.key_hint);
+    cell(tr, k.label || '-'); cell(tr, k.key_hint);
     var until = k.exhausted_until ? new Date(k.exhausted_until) : null;
     var st, cls;
     if (!k.enabled) { st = 'Disabled'; cls = 'bad'; }
     else if (until && until > new Date()) { st = 'Paused until ' + until.toLocaleString() + (k.last_error ? ' (' + k.last_error + ')' : ''); cls = 'bad'; }
     else { st = 'Active'; cls = 'ok'; }
-    cell(tr, st, cls);
-    cell(tr, String(k.uses));
+    cell(tr, st, cls); cell(tr, String(k.uses));
     var td = document.createElement('td');
-    td.appendChild(btn(k.enabled ? 'Disable' : 'Enable', async function () {
-      try { await api('/api/admin/keys/' + k.id, 'PATCH', { enabled: !k.enabled }); loadKeys(); } catch (e) { show(e.message, true); }
-    }, true));
-    td.appendChild(btn('Reset', async function () {
-      try { await api('/api/admin/keys/' + k.id, 'PATCH', { reset: true }); loadKeys(); } catch (e) { show(e.message, true); }
-    }, true));
-    td.appendChild(btn('Delete', async function () {
-      if (!confirm('Delete this key?')) return;
-      try { await api('/api/admin/keys/' + k.id, 'DELETE'); loadKeys(); } catch (e) { show(e.message, true); }
-    }));
-    tr.appendChild(td);
-    body.appendChild(tr);
+    td.appendChild(btn(k.enabled ? 'Disable' : 'Enable', async function () { await api('/api/admin/keys/' + k.id, 'PATCH', { enabled: !k.enabled }); loadKeys(); }, true));
+    td.appendChild(btn('Reset', async function () { await api('/api/admin/keys/' + k.id, 'PATCH', { reset: true }); loadKeys(); }, true));
+    td.appendChild(btn('Delete', async function () { if (!confirm('Delete this key?')) return; await api('/api/admin/keys/' + k.id, 'DELETE'); loadKeys(); }));
+    tr.appendChild(td); body.appendChild(tr);
   });
-}
-async function loadConfig() {
-  var c = await (await fetch('/api/config')).json();
-  $('apk').value = c.apk_url || '';
-}
+});
+$('addBtn').onclick = guard(async function () {
+  await api('/api/admin/keys', 'POST', { label: $('newLabel').value, api_key: $('newKey').value });
+  $('newKey').value = ''; $('newLabel').value = ''; show('Key add ho gayi'); loadKeys();
+});
+
+// ----- start / login -----
 async function start() {
-  await loadKeys();
-  await loadConfig();
+  await Promise.all([loadSettings(), loadStats(), loadKeys(), loadNotifs()]);
   $('loginBox').classList.add('hide');
   $('panel').classList.remove('hide');
-  show('');
+  $('logoutBtn').classList.remove('hide');
 }
 $('loginBtn').onclick = async function () {
   PASS = $('pass').value;
@@ -136,18 +329,7 @@ $('loginBtn').onclick = async function () {
     await start();
   } catch (e) { show('Password galat hai', true); }
 };
-$('addBtn').onclick = async function () {
-  try {
-    await api('/api/admin/keys', 'POST', { label: $('newLabel').value, api_key: $('newKey').value });
-    $('newKey').value = ''; $('newLabel').value = '';
-    show('Key add ho gayi');
-    loadKeys();
-  } catch (e) { show(e.message, true); }
-};
-$('apkBtn').onclick = async function () {
-  try { await api('/api/admin/config', 'POST', { apk_url: $('apk').value }); show('APK link save ho gaya'); }
-  catch (e) { show(e.message, true); }
-};
+$('logoutBtn').onclick = function () { sessionStorage.removeItem('nt_pass'); location.reload(); };
 if (PASS) { start().catch(function () { sessionStorage.removeItem('nt_pass'); }); }
 </script>
 </body>
